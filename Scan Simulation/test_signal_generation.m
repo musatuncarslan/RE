@@ -6,9 +6,6 @@ clc
 
 format long;
 
-addpath('./parameterFiles')
-addpath('./signalGenerationFiles')
-
 % parameters
 Physicsparams = setPhysicsParams(); % physics parameters
 MPIparams = setMPIParams(Physicsparams, 0.1); % MPI machine parameters

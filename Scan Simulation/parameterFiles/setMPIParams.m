@@ -1,11 +1,13 @@
-function MPIparams = setMPIParams(Physicsparams, rs)
+function MPIparams = setMPIParams(Physicsparams, ffp_type, rs)
     MPIparams = struct;
 
-    MPIparams.slewRate = rs; % slew rate (T/s)
-    if MPIparams.slewRate == 0
-        MPIparams.ffp_type = 'fixed';
-    else
-        MPIparams.ffp_type = 'linear_rastered';
+    MPIparams.ffp_type = ffp_type;
+    if strcmp(MPIparams.ffp_type, 'fixed') == 1
+        MPIparams.slewRate = 0;
+    elseif strcmp(MPIparams.ffp_type, 'linear_rastered') == 1
+        MPIparams.slewRate = rs; % slew rate (T/s)
+    elseif strcmp(MPIparams.ffp_type, 'complex_rastered') == 1
+        MPIparams.slewRate = rs; % slew rate (T/s)
     end
     % gradients (T/m) (current scanner)
     MPIparams.Gxx = 4.8;
@@ -13,7 +15,7 @@ function MPIparams = setMPIParams(Physicsparams, rs)
     MPIparams.Gzz = 2.4;
     
     MPIparams.Bp = 10e-3; % Drive field (T)
-    MPIparams.f_drive = 10e3; % drive field frequency
+    MPIparams.f_drive = 10.8e3; % drive field frequency
 
     
     Hp=MPIparams.Bp/Physicsparams.mu0; % magnetization moment
@@ -24,13 +26,20 @@ function MPIparams = setMPIParams(Physicsparams, rs)
     MPIparams.FOV_z = 0.06; % FOV in z-axis (meters) (bore axis)
     MPIparams.FOV_x = 0.05; % FOV in x-axis (meters)
     
+    if strcmp(MPIparams.ffp_type, 'linear_rastered') == 1
+        % for linear rastered
+        MPIparams.time = MPIparams.FOV_z*MPIparams.Gzz*(1/MPIparams.slewRate); % time (seconds)
+        MPIparams.traversedFOVz = [-0.01 0.01]; % traversed fov in the simulation in z-axis (m)
+    elseif strcmp(MPIparams.ffp_type, 'complex_rastered') == 1
+        % for complex rastered
+        MPIparams.time = MPIparams.FOV_z*MPIparams.Gzz*(1/MPIparams.slewRate); % time (seconds)
+        MPIparams.numTrianglePeriods = 3;
+        MPIparams.traversedFOVz = [-0.01 0.01];
+        MPIparams.traversedFOVx = [-0.005 0.005];
+    end
+
     
-    % for linear rastered
-    MPIparams.time = MPIparams.FOV_z*MPIparams.Gzz/MPIparams.slewRate; % time (seconds)
-    MPIparams.traversedFOVz = [-0.025 0.025]; % traversed fov in the simulation in z-axis (m)
-    % [-MPIparams.FOV_z/MPIparams.time/MPIparams.f_drive/2 MPIparams.FOV_z/MPIparams.time/MPIparams.f_drive/2]; for fixed
-    MPIparams.cycle = 5; % number of cycles on the fixed position
-    MPIparams.ffpPosition = [0, 0; 0, 1; 0, 2]; % ffp position in x and z coordinates
+
     
     % related to time constant estimation
     MPIparams.interp_coeff = 10;
