@@ -5,10 +5,10 @@ function SPIOparams = setSPIOParams(Physicsparams, pos, tau_val)
     SPIOparams.tau = [0, 3.5e-6, 3e-6]; % (S)
     
     % spio distribution in 2D
-    SPIOparams.SPIOdistribution = zeros(1024, 1024, length(SPIOparams.diameter)); 
-    SPIOparams.SPIOdistribution((512-20:512+20)-200, 512-20:512+20, 1) = 1;
-    SPIOparams.SPIOdistribution((512-20:512+20), 512-20:512+20, 2) = 1;
-    SPIOparams.SPIOdistribution((512-20:512+20)+200, 512-20:512+20, 3) = 1;
+    SPIOparams.SPIOdistribution = zeros(1000, 1000, length(SPIOparams.diameter)); 
+    SPIOparams.SPIOdistribution(500+60, 500, 1) = 1;
+%     SPIOparams.SPIOdistribution((512-20:512+20), 512-20:512+20, 2) = 1;
+%     SPIOparams.SPIOdistribution((512-20:512+20)+200, 512-20:512+20, 3) = 1;
 
     % extent of SPIO distribution 
     SPIOparams.image_FOV_x = 0.05; % (m) 

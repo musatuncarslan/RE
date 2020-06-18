@@ -3,6 +3,6 @@ function Physicsparams = setPhysicsParams()
 
 
     Physicsparams.mu0=1.256637*10^-6; % permaebility of vacuum
-    Physicsparams.fs = 1e6; % sample frequency of the physical world (Hz)
+    Physicsparams.fs = 50e6; % sample frequency of the physical world (Hz)
    
 end

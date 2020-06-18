@@ -24,8 +24,10 @@ function [colinearIMG, transverseIMG] = generatePSFImages(SPIOparams, colinearPS
         % time domain
         imgF = fft2(tempDistribution, size(colinearPSF{1},1), size(colinearPSF{1},2));
         for k=1:numAngle
-            colinearIMG{m,k} = fftshift(ifft2(imgF.*fft2(colinearPSF{m,k})));    
-            transverseIMG{m,k} = fftshift(ifft2(imgF.*fft2(transversePSF{m,k})));   
+            colinearIMG{m,k} = fftshift(real(ifft2(imgF.*fft2(colinearPSF{m,k}))));    
+            transverseIMG{m,k} = fftshift(real(ifft2(imgF.*fft2(transversePSF{m,k}))));
+            colinearPSF{m,k} = [];
+            transversePSF{m,k} = [];
         end
     end
 end

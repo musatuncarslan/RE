@@ -31,6 +31,8 @@ function [signal, SPIOparams] = generateSignals(colinearIMG, transverseIMG, FFPp
             angleIdx = (FFP_angle == FFP_uniqueAngle(k));
             colinearSignal(l, angleIdx) = (interp2(x,z,colinearIMG{l, k}, FFP_x(angleIdx), FFP_z(angleIdx), 'linear'));
             transverseSignal(l, angleIdx) = (interp2(x,z,transverseIMG{l, k}, FFP_x(angleIdx), FFP_z(angleIdx), 'linear'));
+            colinearIMG{l, k} = [];
+            transverseIMG{l, k} =[];
         end
     end
 
@@ -63,6 +65,11 @@ function [signal, SPIOparams] = generateSignals(colinearIMG, transverseIMG, FFPp
 
     SPIOparams.horizontalPrev = horizontalPrev;
     SPIOparams.verticalPrev = verticalPrev;
+    
+%     signal.colinearSignal = gather(colinearSignal);
+%     signal.transverseSignal = gather(transverseSignal);
+%     signal.horizontalSignal = gather(horizontalSignal);
+%     signal.verticalSignal = gather(verticalSignal);
     
     truncSig = colinearSignal(:, 1:Simparams.downsample:end);
     signal.colinearSignal = gather(truncSig);

@@ -18,18 +18,27 @@ function [Simparams] = setSimulationParams(MPIparams, Physicsparams)
         Simparams.simPeriods = intersect(simPeriodsx,simPeriodsz,'stable'); % periods to simulate
     end
     
-    Simparams.downsample = Physicsparams.fs/MPIparams.fs; % downsample ratio
-    
     % adjust the simulation sampling frequency so that each period has
-    % integer number of samples
-    fs = fs-mod(fs, f_drive); % change sampling frequency so that number of samples per period is an integer
-    Simparams.fs = fs;
+    % integer number of samples and Physics (also simulation) sampling 
+    % frequency is divisible by both MPI sampling frequency and drive
+    % field frequency.
+    f_drive = MPIparams.f_drive;
+    fs_mpi = MPIparams.fs;
+    fs_mpi = fs_mpi-mod(fs_mpi, f_drive);
+    fs_phsy = Physicsparams.fs;
+    fs_phsy = fs_phsy + fs_mpi/2;
+    fs_phsy = fs_phsy - mod(fs_phsy, fs_mpi);
+    Simparams.fs_mpi = fs_mpi;
+    Simparams.fs_phsy = fs_phsy;
+    Simparams.downsample = fs_phsy/fs_mpi;
     
     numPeriods = time*f_drive; % number of drive periods during whole FOV scan (this is hopefully an integer)
     if (floor(numPeriods)~=numPeriods)
         error('Error. Make sure that time*f_drive is an integer. \n\n \t You can slightly adjust "%s" for this.', 'time')
     end
-    Simparams.samplePerPeriod = fs*MPIparams.time/numPeriods; % number of samples per period
+    Simparams.samplePerPeriod = fs*time/numPeriods; % number of samples per period
+    
+    
     
 %     
 %     ffp_type = MPIparams.ffp_type;

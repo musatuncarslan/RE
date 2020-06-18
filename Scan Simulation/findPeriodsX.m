@@ -2,6 +2,9 @@ function simPeriodsx = findPeriodsX(MPIparams)
 
     f_drive = MPIparams.f_drive;
     time = MPIparams.time; % time to traverse whole FOV
+    traversedFOVx = MPIparams.traversedFOVx; % simulated FOV in x direction
+    FOV_x = MPIparams.FOV_x;
+    
     numPeriods = time*f_drive; % number of drive periods during whole FOV scan (this is hopefully an integer)
     if (floor(numPeriods)~=numPeriods)
         error('Error. Make sure that time*f_drive is an integer. \n\n \t You can slightly adjust "%s" for this.', 'time')
@@ -10,8 +13,6 @@ function simPeriodsx = findPeriodsX(MPIparams)
 
     % calculation of necessary periods in the x-direction for partial FOV
     % simulation
-    time = MPIparams.time; % time to traverse whole FOV
-    FOV_x = MPIparams.FOV_x;
     numTrianglePeriods = MPIparams.numTrianglePeriods; % number of triangle zig-zags in whole movement
     numPeriodsPerTriangle = numPeriods/numTrianglePeriods; % number of drive periods per triangle periods 
                                                            % (regarding to the movement in x-direction, 
@@ -24,7 +25,6 @@ function simPeriodsx = findPeriodsX(MPIparams)
     end
 
     robotSpeed_x = FOV_x*numTrianglePeriods*2/time; % robot arm movement speed in x direction (m/s)
-    traversedFOVx = [-0.005 0.005]; % x-axis FOV that is of interest (m)
 
     xi = robotSpeed_x*time/numPeriods;
     x11 = round((traversedFOVx(1)+FOV_x/2)/xi);
