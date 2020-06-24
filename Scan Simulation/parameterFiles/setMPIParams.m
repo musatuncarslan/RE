@@ -35,7 +35,7 @@ function MPIparams = setMPIParams(Physicsparams, ffp_type, rs)
         MPIparams.time = MPIparams.FOV_z*MPIparams.Gzz*(1/MPIparams.slewRate); % time (seconds)
         MPIparams.numTrianglePeriods = 5;
         MPIparams.traversedFOVz = [0.00 0.006];
-        MPIparams.traversedFOVx = [-0.002 0.002];
+        MPIparams.traversedFOVx = [-0.0002 0.0002];
     end
 
     

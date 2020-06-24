@@ -32,7 +32,7 @@ function [FFPparams] = generateFFP(t, MPIparams, Simparams, sigmoidParams)
     xDifference = diff(FFP_x, 1, 2);
 
     FFP_speed = sqrt(zDifference.^2 + xDifference.^2); 
-    rounded = round(atan2d(xDifference, zDifference)*10)/10;
+    rounded = round(atan2d(xDifference, zDifference)*1000)/1000;
     FFP_angle = wrapTo360(rounded);    
 
     

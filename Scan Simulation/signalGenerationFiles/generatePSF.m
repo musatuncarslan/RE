@@ -7,11 +7,11 @@ function [colinearPSF,transversePSF, X, Z] = generatePSF(MPIparams, SPIOparams, 
     dx = SPIOparams.dx; 
     dz = SPIOparams.dz;
 
-    FFP_uniqueAngle = FFPparams.FFP_angle;
-    numAngle = length(FFPparams.FFP_uniqueAngle);
+    FFP_uniqueAngle = (FFPparams.FFP_uniqueAngle);
+    numAngle = length(FFP_uniqueAngle);
 
-    x = (-FOV_x/2:dx:FOV_x/2);
-    z = (-FOV_z/2:dz:FOV_z/2);
+    x = gpuArray(-FOV_x/2:dx:FOV_x/2);
+    z = gpuArray(-FOV_z/2:dz:FOV_z/2);
     [X,Z] = meshgrid(x,z);
     Y = 0;
 
@@ -55,10 +55,10 @@ function [colinearPSF,transversePSF, X, Z] = generatePSF(MPIparams, SPIOparams, 
             Nenv = Lx./Hxyzk; Nenv(isnan(Nenv)) = 1/3; % normal component
             arg_colli = Gzz^2.*rotZ.^2./Hxyz.^2; arg_colli(isnan(arg_colli)) = 0;
 
-            colinearPSF{m, l} = gpuArray(Tenv.*arg_colli + Nenv.*(1-arg_colli));
+            colinearPSF{m, l} = gather(Tenv.*arg_colli + Nenv.*(1-arg_colli));
 
             arg_trans = Gxx*Gzz*rotX.*rotZ./Hxyz.^2; arg_trans(isnan(arg_trans)) = 0;
-            transversePSF{m, l} = gpuArray((Tenv - Nenv).*arg_trans);
+            transversePSF{m, l} = gather((Tenv - Nenv).*arg_trans);
         end
     end
 end
