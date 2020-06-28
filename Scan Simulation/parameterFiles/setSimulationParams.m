@@ -1,7 +1,6 @@
 function [Simparams] = setSimulationParams(MPIparams, Physicsparams)
     Simparams = struct;
     
-    f_drive = MPIparams.f_drive;
     fs = Physicsparams.fs;
     ffp_type = MPIparams.ffp_type;
     time = MPIparams.time; % time to traverse whole FOV

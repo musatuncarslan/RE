@@ -1,4 +1,4 @@
-function [FFPparams] = generateFFP(t, MPIparams, Simparams, sigmoidParams)
+function [FFPparams] = generateFFP(gpudev, t, MPIparams, Simparams, sigmoidParams)
 
     FOV_z = MPIparams.FOV_z;
     FOV_x = MPIparams.FOV_x;
@@ -40,10 +40,10 @@ function [FFPparams] = generateFFP(t, MPIparams, Simparams, sigmoidParams)
 %     sigma = sigPow/50;
 %     FFP_z=FFP_z+sigma*randn(1,length(FFP_z));
     
-    FFPparams.FFP_x = FFP_x;
-    FFPparams.FFP_z = FFP_z;
-    FFPparams.FFP_speed = FFP_speed;
-    FFPparams.FFP_angle = FFP_angle;
-    FFPparams.FFP_uniqueAngle = unique(FFP_angle);
+    FFPparams.FFP_x = FFP_x; wait(gpudev); clear FFP_x;
+    FFPparams.FFP_z = FFP_z; wait(gpudev); clear FFP_z;
+    FFPparams.FFP_speed = FFP_speed; wait(gpudev); clear FFP_speed;
+    FFPparams.FFP_angle = FFP_angle;  
+    FFPparams.FFP_uniqueAngle = unique(FFP_angle); wait(gpudev); clear FFP_angle;
     
 end

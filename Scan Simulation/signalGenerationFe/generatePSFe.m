@@ -31,8 +31,9 @@ function generatePSFe(gpudev, MPIparams, SPIOparams, angleVec, particleNo, div)
     z = gpuArray(-FOV_z/2:dz:FOV_z/2);
     xL = length(x); zL = length(z);
     % generate h5 files to store PSFs (this may be a big file depending on your parameters)
-    h5create(['./temp/','PSF.h5'],'/colinearPSF',[zL xL numAngle]);
-    h5create(['./temp/','PSF.h5'],'/transversePSF',[zL xL numAngle]);
+    h5create(['./temp/','PSF.h5'],'/colinearIMG',[zL xL numAngle]);
+    h5create(['./temp/','PSF.h5'],'/transverseIMG',[zL xL numAngle]);
+    h5create(['./temp/','PSF.h5'],'/angleVec',[1 length(angleVec)]);
     
     [X,Z] = meshgrid(x,z);
     
@@ -49,7 +50,25 @@ function generatePSFe(gpudev, MPIparams, SPIOparams, angleVec, particleNo, div)
     e(1, :) = X(:);
     e(2, :) = Z(:);
     wait(gpudev); clear X Z;
+    
+    tempDistribution = SPIOparams.SPIOdistribution(:,:,particleNo);
 
+    % pad the distribution with 0s so it has same size with the PSFs
+    img_size = size(tempDistribution); psf_size = [zL, xL];
+    if img_size(1) < psf_size(1)
+       tempDistribution = padarray(tempDistribution,[floor((psf_size(1)-img_size(1))/2), 0],0,'both');
+       img_size = size(tempDistribution);
+       tempDistribution = padarray(tempDistribution,[psf_size(1)-img_size(1), 0],0,'post');
+    end
+    if img_size(2) < psf_size(2)
+       tempDistribution = padarray(tempDistribution,[0, floor((psf_size(2)-img_size(2))/2)],0,'both');
+       img_size = size(tempDistribution);
+       tempDistribution = padarray(tempDistribution,[0, psf_size(2)-img_size(2)],0,'post');
+    end
+    % multiplication in frequency domain is faster than convolution in
+    % time domain
+    imgF = gpuArray(fft2(tempDistribution, zL, xL));
+    
     for l=1:numIters
         uniqueAngle_part = angleVec(idxVec(l)+1:idxVec(l+1));
 
@@ -67,7 +86,6 @@ function generatePSFe(gpudev, MPIparams, SPIOparams, angleVec, particleNo, div)
         idx = find(Hxyzk == 0);
 
         Lx = coth(Hxyzk) - 1./(Hxyzk) ;
-        Lx(idx) = 0;
         Lx = Lx./Hxyzk;
         Lx(idx) = 1/3; % Lx = Nenv, normal component from now on
 
@@ -81,9 +99,21 @@ function generatePSFe(gpudev, MPIparams, SPIOparams, angleVec, particleNo, div)
         Lx_der = 1./Hxyzk.^2 - 1./sinh(Hxyzk).^2;
         Lx_der(idx) = 1/3; % Lx_der = Tenv, tangential from now on
         wait(gpudev); clear Hxyzk;
+        
+        
+        colinearPSF_f = fft2(Lx_der.*arg_colli + Lx.*(1-arg_colli)); wait(gpudev); 
+        transversePSF_f = fft2((Lx_der - Lx).*arg_trans);
+        wait(gpudev); clear Lx Lx_der arg_colli arg_trans;
+        
+        colIMG = real(ifft2(imgF.*colinearPSF_f)); wait(gpudev); clear colinearPSF_f;
+        colIMG_s = fftshift(fftshift(colIMG, 1), 2); wait(gpudev); clear colIMG;
+        h5write('./temp/PSF.h5', '/colinearIMG', gather(colIMG_s), [1 1 idxVec(l)+1], [zL xL iterVec(l)]); wait(gpudev); clear colIMG_s;
 
-        h5write('./temp/PSF.h5', '/colinearPSF', gather(Lx_der.*arg_colli + Lx.*(1-arg_colli)), [1 1 idxVec(l)+1], [zL xL iterVec(l)]);
-        h5write('./temp/PSF.h5', '/transversePSF', gather((Lx_der - Lx).*arg_trans), [1 1 idxVec(l)+1], [zL xL iterVec(l)]);
+        
+        tranIMG = real(ifft2(imgF.*transversePSF_f)); wait(gpudev); clear transversePSF_f;
+        tranIMG_s = fftshift(fftshift(tranIMG, 1), 2); wait(gpudev); clear tranIMG;
+        h5write('./temp/PSF.h5', '/transverseIMG', gather(tranIMG_s), [1 1 idxVec(l)+1], [zL xL iterVec(l)]); wait(gpudev); clear tranIMG_s;        
     end
+    h5write('./temp/PSF.h5', '/angleVec', gather(angleVec), [1 1], [1 length(angleVec)]); wait(gpudev); clear angleVec; % write angle vector to file for ease of access later on
 
 end

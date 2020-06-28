@@ -1,4 +1,4 @@
-function generatePSFIe(gpudev, SPIOparams, particleNo, div)
+function generatePSFIe(gpudev, SPIOparams, particleNo, angleVec, div)
 
     info = h5info('./temp/PSF.h5');
     dataSize = info.Datasets(1).Dataspace.Size;
@@ -34,6 +34,7 @@ function generatePSFIe(gpudev, SPIOparams, particleNo, div)
     % create new datasets for colinear and transverse images
     h5create(['./temp/','IMG.h5'],'/colinearIMG',[zL xL numAngle]);
     h5create(['./temp/','IMG.h5'],'/transverseIMG',[zL xL numAngle]);
+    h5create(['./temp/','IMG.h5'],'/angleVec',[1 length(angleVec)]);
     for l=1:numIters
         colinearPSF_f = fft2(gpuArray(h5read('./temp/PSF.h5','/colinearPSF', [1 1 idxVec(l)+1], [zL xL iterVec(l)])));
         colIMG = real(ifft2(imgF.*colinearPSF_f)); wait(gpudev); clear colinearPSF_f;
@@ -45,6 +46,9 @@ function generatePSFIe(gpudev, SPIOparams, particleNo, div)
         tranIMG_s = fftshift(fftshift(tranIMG, 1), 2); wait(gpudev); clear tranIMG;
         h5write('./temp/IMG.h5', '/transverseIMG', gather(tranIMG_s), [1 1 idxVec(l)+1], [1201 1001 iterVec(l)]); wait(gpudev); clear tranIMG_s;
     end
+    wait(gpudev); clear tranIMG_s;
+    h5write('./temp/IMG.h5', '/angleVec', gather(angleVec), [1 1], [1 length(angleVec)]); % write angle vector to file for ease of access later on
+
     % delete the unnecessary PSF file to clear up space
     tempList = dir('temp');
     if length(tempList) > 2
