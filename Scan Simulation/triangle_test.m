@@ -12,49 +12,56 @@ MPIparams = setMPIParams(Physicsparams, 'complex_rastered', 0.1); % MPI machine 
 SPIOparams = setSPIOParams(Physicsparams, 512, 2e-6); % SPIO parameters
 Simparams = setSimulationParams(MPIparams, Physicsparams); % Simulation parameters
 
-particleNo = 1;
 
 % preprocessing in order to find all the angles to calculate the necessary
 % PSFs
+maxIdx = 0;
+for k=1:Simparams.divNum
+    maxIdx = max(maxIdx, Simparams.divL(k*2)-Simparams.divL((k-1)*2+1)+1);
+end
+FFP_x = zeros(Simparams.divNum, maxIdx*Simparams.samplePerPeriod/Simparams.downsample+2);
+FFP_z = zeros(size(FFP_x));
 uniqueAngle_sim = [];
-count = 1;
-for k=1   
-    t = gpuArray(((Simparams.simPeriods(1)-1)*Simparams.samplePerPeriod+1:(Simparams.simPeriods(end)*Simparams.samplePerPeriod+2*Simparams.downsample+1))/Simparams.fs_phsy);
+for k=1:Simparams.divNum
+    idx = [Simparams.divL((k-1)*2+1) Simparams.divL(k*2)];
+    simIdx = ((Simparams.simPeriods(idx(1))-1)*Simparams.samplePerPeriod+1:(Simparams.simPeriods(idx(2))*Simparams.samplePerPeriod+2*Simparams.downsample+1));
+    t = gpuArray(simIdx/Simparams.fs_phsy);
     FFPparams = generateFFP(gpudev, t, MPIparams, Simparams, [3, 0]); 
     uniqueAngle_sim = [uniqueAngle_sim, FFPparams.FFP_uniqueAngle];
-    count = count + 1;
+    FFP_x(k, 1:(idx(2)-idx(1)+1)*Simparams.samplePerPeriod/Simparams.downsample+2) = gather(FFPparams.FFP_x(1:Simparams.downsample:end-1));
+    FFP_z(k, 1:(idx(2)-idx(1)+1)*Simparams.samplePerPeriod/Simparams.downsample+2) = gather(FFPparams.FFP_z(1:Simparams.downsample:end-1));
 end
 angleVec = unique(uniqueAngle_sim);
 
+% plotting trajectory and SPIOs for check
+figure;
 x_axis = (-SPIOparams.image_FOV_x/2:SPIOparams.dx:SPIOparams.image_FOV_x/2-SPIOparams.dx);
 z_axis = (-SPIOparams.image_FOV_z/2:SPIOparams.dz:SPIOparams.image_FOV_z/2-SPIOparams.dz);
-
 for k=1:length(SPIOparams.diameter)
     surf(x_axis, z_axis, SPIOparams.SPIOdistribution(:,:,k)); shading interp
     hold on;
 end
-plot(FFPparams.FFP_x, FFPparams.FFP_z)
+for k=1:Simparams.divNum
+    idx = [Simparams.divL((k-1)*2+1) Simparams.divL(k*2)];
+    plot(FFP_x(k, 1:(idx(2)-idx(1)+1)*Simparams.samplePerPeriod/Simparams.downsample+2), FFP_z(k, 1:(idx(2)-idx(1)+1)*Simparams.samplePerPeriod/Simparams.downsample+2), 'color', [0 0.4470 0.7410])
+end
 view(2)
 xlabel('x-axis'); ylabel('z-axis')
 xlim([-MPIparams.FOV_x/2 MPIparams.FOV_x/2]); ylim([-MPIparams.FOV_z/2 MPIparams.FOV_z/2])
 
 wait(gpudev); clear FFPparams uniqueAngle_sim t;
 
-div = divisors(length(Simparams.simPeriods));
-big = div(end);
-if isempty(div(div > big)) == 1
-    div = div(end);
-else
-    div = div(div > big); 
-    div = div(1);
+% actual signal generation
+maxIdx = 0;
+for k=1:Simparams.divNum
+    maxIdx = max(maxIdx, Simparams.divL(k*2)-Simparams.divL((k-1)*2+1)+1);
 end
-divL = div;
-div = length(Simparams.simPeriods)/div;
-
-signal = zeros(div, Simparams.samplePerPeriod*length(Simparams.simPeriods)/Simparams.downsample/div+2);
-FFP_x = zeros(div, Simparams.samplePerPeriod*length(Simparams.simPeriods)/Simparams.downsample/div+2);
-FFP_z = zeros(div, Simparams.samplePerPeriod*length(Simparams.simPeriods)/Simparams.downsample/div+2);
-drive = zeros(div, Simparams.samplePerPeriod*length(Simparams.simPeriods)/Simparams.downsample/div+2);
+signal = zeros(Simparams.divNum, maxIdx*Simparams.samplePerPeriod/Simparams.downsample+2);
+sigL = size(signal);
+FFP_x = zeros(sigL);
+FFP_z = zeros(sigL);
+drive = zeros(sigL);
+divL = Simparams.divL;
 for particleNo = 1:length(SPIOparams.diameter)
     % efficient functions, uses HDD instead of RAM, should not give any
     % memory errors, uses HDF5 file structure
@@ -63,26 +70,25 @@ for particleNo = 1:length(SPIOparams.diameter)
     toc
 
     % generate the MPI signal
-    for k=1:div
+    for k=1:Simparams.divNum
         tic
-        idx = [(k-1)*divL+1, k*divL];
-        simIdx = ((Simparams.simPeriods(idx(1))-1)*Simparams.samplePerPeriod+1:(Simparams.simPeriods(idx(end))*Simparams.samplePerPeriod+2*Simparams.downsample+1));
-        t = gpuArray(simIdx/Simparams.fs_phsy);
-        FFPparams = generateFFP(gpudev, t, MPIparams, Simparams, [3, 0]);   
+        idx = [divL((k-1)*2+1) divL(k*2)]; % get the start and end indices of the necessary periods to be simulated, then the indices for each sample is generated
+        simIdx = ((Simparams.simPeriods(idx(1))-1)*Simparams.samplePerPeriod+1:(Simparams.simPeriods(idx(2))*Simparams.samplePerPeriod+2*Simparams.downsample+1));
+        t = gpuArray(simIdx/Simparams.fs_phsy); % divide the indices for each sample to sampling frequency to get the time vector
+        FFPparams = generateFFP(gpudev, t, MPIparams, Simparams, [3, 0]); % simulate FFP
         wait(gpudev); clear t;
-        [signals_sep, SPIOparams] = generateSe(gpudev, FFPparams, MPIparams, SPIOparams, Simparams, particleNo, 50);
+        [signals_sep, SPIOparams] = generateSe(gpudev, FFPparams, MPIparams, SPIOparams, Simparams, particleNo, 50); % simulate signal
         toc
-        signal(k, :) = signal(k,:) + gather(signals_sep.horizontalSignal); 
-        wait(gpudev); clear FFPparams t signals_sep;
+        signal(k, 1:length(signals_sep.horizontalSignal)) = signal(k,1:length(signals_sep.horizontalSignal)) + gather(signals_sep.horizontalSignal); 
+        wait(gpudev); clear t;
         
         if particleNo == 1
-            FFP_x(k, :) = gather(FFP_params.FFP_x(1:Simparams.downsample:end-1));
-            FFP_z(k, :) = gather(FFP_params.FFP_z(1:Simparams.downsample:end-1));
-            drive(k, :) = gather(FFP_params.FFP_drive(1:Simparams.downsample:end-1));
+            FFP_x(k, 1:length(signals_sep.horizontalSignal)) = gather(FFPparams.FFP_x(1:Simparams.downsample:end-1));
+            FFP_z(k, 1:length(signals_sep.horizontalSignal)) = gather(FFPparams.FFP_z(1:Simparams.downsample:end-1));
+            drive(k, 1:length(signals_sep.horizontalSignal)) = gather(FFPparams.drive(1:Simparams.downsample:end-1));
         end
+        wait(gpudev); clear signals_sep FFPparams;
     end
-
-
 end
 
 % delete signal file inside the temporary folder if it exists
@@ -91,7 +97,7 @@ if length(tempList) > 3
     delete('temp\signal.h5')
 end
 
-sigL = size(signal);
+
 h5create(['./temp/','signal.h5'],'/signal',sigL);
 h5create(['./temp/','signal.h5'],'/FFP_x',sigL);
 h5create(['./temp/','signal.h5'],'/FFP_z',sigL);

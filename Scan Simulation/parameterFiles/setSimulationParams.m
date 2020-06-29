@@ -12,7 +12,7 @@ function [Simparams] = setSimulationParams(MPIparams, Physicsparams)
         Simparams.simPeriods = simPeriodsz; % periods to simulate
     elseif strcmpi(ffp_type, 'fixed')
     elseif strcmpi(ffp_type, 'complex_rastered')
-        simPeriodsx = findPeriodsX(MPIparams);
+        [simPeriodsx] = findPeriodsX(MPIparams);
         simPeriodsz = findPeriodsZ(MPIparams);
         Simparams.simPeriods = intersect(simPeriodsx,simPeriodsz,'stable'); % periods to simulate
     end
@@ -37,6 +37,21 @@ function [Simparams] = setSimulationParams(MPIparams, Physicsparams)
     end
     Simparams.samplePerPeriod = fs*time/numPeriods; % number of samples per period
     
+    
+    divNo = find(diff(Simparams.simPeriods) ~= 1); % index of division
+    if (isempty(divNo) ~= 1)
+        divNo = [0 divNo length(Simparams.simPeriods)];
+        divNum = length(divNo)-1; % number of divions
+        divL = [];
+        for k=1:divNum
+            divL = [divL divNo(k)+1 divNo(k+1)]; % length of each division
+        end
+    else
+        divNum = 1;
+        divL = [1 length(Simparams.simPeriods)];
+    end
+    Simparams.divL = divL;
+    Simparams.divNum = divNum;
     
     
 %     

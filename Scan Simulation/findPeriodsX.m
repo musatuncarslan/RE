@@ -1,4 +1,4 @@
-function simPeriodsx = findPeriodsX(MPIparams)
+function [simPeriodsx] = findPeriodsX(MPIparams)
 
     f_drive = MPIparams.f_drive;
     time = MPIparams.time; % time to traverse whole FOV

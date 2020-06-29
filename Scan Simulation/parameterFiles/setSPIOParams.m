@@ -1,7 +1,7 @@
 function SPIOparams = setSPIOParams(Physicsparams, pos, tau_val)
     SPIOparams = struct;
     
-    SPIOparams.diameter = [25]; % (nm)
+    SPIOparams.diameter = [25, 25, 25]; % (nm)
     SPIOparams.tau = [2e-6, 4e-6, 3e-6]; % (S)
     
     % spio distribution in 2D
