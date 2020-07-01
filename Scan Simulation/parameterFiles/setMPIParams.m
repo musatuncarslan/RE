@@ -15,7 +15,7 @@ function MPIparams = setMPIParams(Physicsparams, ffp_type, rs)
     MPIparams.Gzz = 2.4;
     
     MPIparams.Bp = 10e-3; % Drive field (T)
-    MPIparams.f_drive = 10e3; % drive field frequency
+    MPIparams.f_drive = 20e3; % drive field frequency
 
     
     Hp=MPIparams.Bp/Physicsparams.mu0; % magnetization moment
@@ -34,7 +34,7 @@ function MPIparams = setMPIParams(Physicsparams, ffp_type, rs)
         % for complex rastered
         MPIparams.time = MPIparams.FOV_z*MPIparams.Gzz*(1/MPIparams.slewRate); % time (seconds)
         MPIparams.numTrianglePeriods = 5;
-        MPIparams.traversedFOVz = [-0.006 0.012];
+        MPIparams.traversedFOVz = [-0.00 0.006];
         MPIparams.traversedFOVx = [-0.02 0.02];
     end
 

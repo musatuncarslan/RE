@@ -29,39 +29,33 @@ FFP_z_fixed = zeros(1, numIters*numSamplesPerIter+2);
 FFP_drive_fixed = zeros(1, numIters*numSamplesPerIter+2);
 FFP_x_fixed = zeros(1, numIters*numSamplesPerIter+2);
 divL = Simparams.divL;
+L = 0;
 for k=1:numIters
-    idx = [1 divL(k*2)-divL((k-1)*2+1)];
+    idx = [1 divL(k*2)-divL((k-1)*2+1)+1];
     if k ~= numIters
-        vecIdx = (idx(1)-1)*Simparams.samplePerPeriod/Simparams.downsample+1:idx(2)*Simparams.samplePerPeriod/Simparams.downsample;
+        vecIdx = ((idx(1)-1)*Simparams.samplePerPeriod/Simparams.downsample+1:idx(2)*Simparams.samplePerPeriod/Simparams.downsample)+L;
         horizontalSignal(1, vecIdx) = horizontalSignal_mpi_mat(k, 1:length(vecIdx));
         FFP_z_fixed(1, vecIdx) = FFP_z(k, 1:length(vecIdx));
         FFP_x_fixed(1, vecIdx) = FFP_x(k, 1:length(vecIdx));
         FFP_drive_fixed(1, vecIdx) = FFP_drive(k, 1:length(vecIdx));
     else 
-        vecIdx = (idx(1)-1)*Simparams.samplePerPeriod/Simparams.downsample+1:idx(2)*Simparams.samplePerPeriod/Simparams.downsample+2;
-        horizontalSignal(1, vecIdx+L) = horizontalSignal_mpi_mat(k, 1:length(vecIdx));
-        FFP_z_fixed(1, vecIdx+L) = FFP_z(k, 1:length(vecIdx));
-        FFP_x_fixed(1, vecIdx+L) = FFP_x(k, 1:length(vecIdx));
-        FFP_drive_fixed(1, vecIdx+L) = FFP_drive(k, 1:length(vecIdx));
+        vecIdx = ((idx(1)-1)*Simparams.samplePerPeriod/Simparams.downsample+1:idx(2)*Simparams.samplePerPeriod/Simparams.downsample)+2+L;
+        horizontalSignal(1, vecIdx) = horizontalSignal_mpi_mat(k, 1:length(vecIdx));
+        FFP_z_fixed(1, vecIdx) = FFP_z(k, 1:length(vecIdx));
+        FFP_x_fixed(1, vecIdx) = FFP_x(k, 1:length(vecIdx));
+        FFP_drive_fixed(1, vecIdx) = FFP_drive(k, 1:length(vecIdx));
     end
-    L = length(vecIdx);
+    L = L+length(vecIdx);
 end
+
+figure; scatter3(FFP_x_fixed*100, FFP_z_fixed*100, horizontalSignal,  3, horizontalSignal)
+xlabel('x-axis (cm)'); ylabel('z-axis (cm)'); zlabel('s(t)'); title('MPI Signal')
+
 
 L = length(horizontalSignal);
 f = (0:L-1)*(MPIparams.fs)/L;
 f_step = MPIparams.fs/L;
 Bw_idx = round(10000/f_step/2);
-
-% extract odd harmonics
-idx = [];
-for k=3
-    [~, idx_1] = min(abs(f-MPIparams.f_drive*k));
-    [~, idx_2] = min(abs(f-(MPIparams.fs-MPIparams.f_drive*k)));
-    idx_1 = idx_1-Bw_idx:idx_1+Bw_idx;
-    idx_2 = idx_2-Bw_idx:idx_2+Bw_idx;
-    idx = [idx idx_1 idx_2];
-end
-
 
 % find estimation parameters for phase and amplitude correction
 estimationParams = struct;
@@ -87,7 +81,7 @@ data_start_idx = start_idx; % 5309152, 6912443+3700234+242-137 % 10368663+813+10
 data_idx = data_start_idx-(p_start)*1e3:data_start_idx+(p_end)*MPIparams.fs/MPIparams.f_drive+1;
 partial_signal_interp = signal(data_idx);
 
-numIters = pfov/4; 
+numIters = pfov/8; 
 numPeriod = pfov; % (length(partial_signal_interp)-2)/(MPIparams.fs/MPIparams.f_drive); % number of periods on a single line
 
 estimationParams.interp_coeff = 100;
@@ -105,7 +99,7 @@ for pfovIdx=1:numIters
     % sliding window
 %     sig_idx = (1:(estimationParams.numSamplesPerIter-2)+2)+(estimationParams.numSample-2)*(pfovIdx-1); 
     % non-sliding window    
-    sig_idx = (1:(estimationParams.numSamplesPerIter-2)+2)+(estimationParams.numSamplesPerIter-2)*(pfovIdx-1);
+    sig_idx = ((1:(estimationParams.numSamplesPerIter-2)+2)+(estimationParams.numSamplesPerIter-2)*(pfovIdx-1));
     FFP_z_part(count) = FFP_z_fixed(sig_idx(end/2)) - FFP_drive_fixed(sig_idx(end/2));
     FFP_x_part(count) = FFP_x_fixed(sig_idx(end/2));
     
@@ -134,7 +128,7 @@ distribution = zeros(size(SPIOparams.SPIOdistribution(:,:,1)));
 for k=1:length(SPIOparams.diameter)
     distribution = distribution + SPIOparams.SPIOdistribution(:,:,k);
 end
-surf(x_axis, z_axis, distribution); shading interp
+surf(x_axis*100, z_axis*100, distribution); shading interp
 hold on;
 % preprocessing in order to find all the angles to calculate the necessary
 % PSFs
@@ -151,16 +145,29 @@ for k=1:Simparams.divNum
     t = gpuArray(simIdx/Simparams.fs_phsy);
     FFPparams = generateFFP(gpudev, t, MPIparams, Simparams, [3, 0]); 
     uniqueAngle_sim = [uniqueAngle_sim, FFPparams.FFP_uniqueAngle];
-    plot(FFPparams.FFP_x(1:Simparams.downsample:end-1), FFPparams.FFP_z(1:Simparams.downsample:end-1), 'color', [0 0.4470 0.7410])
+    plot(FFPparams.FFP_x(1:Simparams.downsample:end-1)*100, FFPparams.FFP_z(1:Simparams.downsample:end-1)*100, 'color', [0 0.4470 0.7410])
 end
 view(2)
-xlabel('x-axis'); ylabel('z-axis')
+xlabel('x-axis (cm)'); ylabel('z-axis (cm)'); title('Impulsive SPIO Distribution'); legend('SPIO distribution', 'Total FFP Trajectory')
 
 F = scatteredInterpolant(FFP_x_fixed', FFP_z_fixed', tau_est_linear'*10^6);
-F.Method = 'linear';
+F.Method = 'natural';
 [xq, zq] = meshgrid(x_axis, z_axis);
 Vq = F(xq, zq);
 
-figure; surf(x_axis, z_axis, Vq.*distribution)
+figure; surf(x_axis*100, z_axis*100, Vq.*distribution)
 shading interp
-xlabel('x-axis'); ylabel('z-axis'); zlabel('\tau (\mu s)')
+xlabel('x-axis (cm)'); ylabel('z-axis (cm)'); zlabel('\tau (\mu s)')
+axis tight; title(['Estimation Surface, f_d = ' num2str(MPIparams.f_drive*1e-3) ' kHz']); 
+xlim([-1 1]); ylim([-1 1])
+colorbar; 
+% view(2);
+
+meanTau = [];
+stdTau = [];
+for k=1:length(SPIOparams.diameter)
+    meanTau = [meanTau mean(Vq(SPIOparams.SPIOdistribution(:,:,k)~=0))];
+    stdTau = [stdTau std(Vq(SPIOparams.SPIOdistribution(:,:,k)~=0))];
+end
+meanTau
+stdTau

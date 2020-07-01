@@ -4,162 +4,166 @@ clc
 
 format long;
 
-robot_movement_type = 'fixed';
-MPIparams = struct;
-SPIOparams = struct;
+gpudev = gpuDevice(1); % get the GPU device
+
+% parameters
+Physicsparams = setPhysicsParams(); % physics parameters
+MPIparams = setMPIParams(Physicsparams, 'complex_rastered', 0.1); % MPI machine parameters
+SPIOparams = setSPIOParams(Physicsparams, 512, 2e-6); % SPIO parameters
+Simparams = setSimulationParams(MPIparams, Physicsparams); % Simulation parameters
 
 
-% gradients (T/m) (current scanner)
-Gxx = 4.8;
-Gyy = 2.4;
-Gzz = 2.4;
-diameter = 25; % (nm)
+info = h5info('./temp/signal.h5');
 
-Bp = 15e-3; % Drive field (T)
-f_drive = 10e3; % drive field frequency
-mu0=1.256637*10^-6; % permaebility of vacuum
-Hp=Bp/mu0; % magnetization moment
-G=Gzz/mu0; % gradient
-driveMag=Hp/G; % extent of the drive field
+sigSize = info.Datasets(1).Dataspace.Size;
+horizontalSignal_mpi_mat = h5read('./temp/signal.h5', '/signal', [1 1], sigSize);
+FFP_z = h5read('./temp/signal.h5', '/FFP_z', [1 1], sigSize);
+FFP_x = h5read('./temp/signal.h5', '/FFP_x', [1 1], sigSize);
+FFP_drive = h5read('./temp/signal.h5', '/drive', [1 1], sigSize);
 
-fs = 20e6; % sample frequency of the physical world (Hz)
-fs_mpi = 2e6; % sample frequency of the MPI system (Hz)
-downsample = fs/fs_mpi; % downsample ratio
-FOV_z = 0.06; % FOV in z-axis (meters) (bore axis)
-FOV_x = 0.05; % FOV in x-axis (meters)
-time = 2; % time (seconds)
+% arrange matrix data into vector
+numIters = sigSize(1);
+numSamplesPerIter = sigSize(2) - 2;
+horizontalSignal = zeros(1, numIters*numSamplesPerIter+2);
+FFP_z_fixed = zeros(1, numIters*numSamplesPerIter+2);
+FFP_drive_fixed = zeros(1, numIters*numSamplesPerIter+2);
+FFP_x_fixed = zeros(1, numIters*numSamplesPerIter+2);
+divL = Simparams.divL;
+for k=1:numIters
+    idx = [1 divL(k*2)-divL((k-1)*2+1)];
+    if k ~= numIters
+        vecIdx = (idx(1)-1)*Simparams.samplePerPeriod/Simparams.downsample+1:idx(2)*Simparams.samplePerPeriod/Simparams.downsample;
+        horizontalSignal(1, vecIdx) = horizontalSignal_mpi_mat(k, 1:length(vecIdx));
+        FFP_z_fixed(1, vecIdx) = FFP_z(k, 1:length(vecIdx));
+        FFP_x_fixed(1, vecIdx) = FFP_x(k, 1:length(vecIdx));
+        FFP_drive_fixed(1, vecIdx) = FFP_drive(k, 1:length(vecIdx));
+    else 
+        vecIdx = (idx(1)-1)*Simparams.samplePerPeriod/Simparams.downsample+1:idx(2)*Simparams.samplePerPeriod/Simparams.downsample+2;
+        horizontalSignal(1, vecIdx+L) = horizontalSignal_mpi_mat(k, 1:length(vecIdx));
+        FFP_z_fixed(1, vecIdx+L) = FFP_z(k, 1:length(vecIdx));
+        FFP_x_fixed(1, vecIdx+L) = FFP_x(k, 1:length(vecIdx));
+        FFP_drive_fixed(1, vecIdx+L) = FFP_drive(k, 1:length(vecIdx));
+    end
+    L = length(vecIdx);
+end
 
-numLines = 9; % number of lines in x-axis to traverse
+L = length(horizontalSignal);
+f = (0:L-1)*(MPIparams.fs)/L;
+f_step = MPIparams.fs/L;
+Bw_idx = round(10000/f_step/2);
 
-noLine = 5;
+% extract odd harmonics
+idx = [];
+for k=3
+    [~, idx_1] = min(abs(f-MPIparams.f_drive*k));
+    [~, idx_2] = min(abs(f-(MPIparams.fs-MPIparams.f_drive*k)));
+    idx_1 = idx_1-Bw_idx:idx_1+Bw_idx;
+    idx_2 = idx_2-Bw_idx:idx_2+Bw_idx;
+    idx = [idx idx_1 idx_2];
+end
 
-numPeriod = time*f_drive; % number of periods on a single line
-numSamplePerPeriod = fs/f_drive; % sample per drive field period in Fs
-a = gcd(fs*time, numPeriod); % find the greatest common divisor of total number of samples and total number of periods per line
-div = divisors(a); % find the divisors of gcd (these numbers divide both total number of samples and number of periods per line)
-numIters = div(end-3); % use the middle number of divisors as a rule of thumb for number of iterations to solve the whole problem
 
+% find estimation parameters for phase and amplitude correction
+estimationParams = struct;
+[estimationParams.del_t, estimationParams.amp_t] = findDistortion(MPIparams); 
+
+% filter the 1st harmonic and extract odd harmonics upto 7th. also upsample
+% the data if necessary
+[filteredSignal, MPIparams] = extractData(horizontalSignal, MPIparams, 2e6, 1000, 11);
+
+snr = inf;
+[signal, ~] = awgnInterference(filteredSignal, MPIparams, snr, inf);
+
+
+
+
+% start processing
+start_idx = 1; % start_idx+val_idx-3; % corrected start idx "-2" is magical dont ask
+pfov = length(Simparams.simPeriods); % total number of pfovs
+p_start = 0; % floor((start_idx)/1000) get back to the start of the data from the starting sample
+p_end = pfov-p_start;
+
+data_start_idx = start_idx; % 5309152, 6912443+3700234+242-137 % 10368663+813+10-43; % 16922286-100+569+500-5+194
+data_idx = data_start_idx-(p_start)*1e3:data_start_idx+(p_end)*MPIparams.fs/MPIparams.f_drive+1;
+partial_signal_interp = signal(data_idx);
+
+numIters = pfov/4; 
+numPeriod = pfov; % (length(partial_signal_interp)-2)/(MPIparams.fs/MPIparams.f_drive); % number of periods on a single line
+
+estimationParams.interp_coeff = 100;
 numPeriodsPerIter = numPeriod/numIters;
-numSamplesPerIter = fs*time/numIters;
+estimationParams.numSamplesPerIter = 1*numPeriodsPerIter*(MPIparams.fs/MPIparams.f_drive)+2;
+estimationParams.numSample = (MPIparams.fs/MPIparams.f_drive)+2; % + 2 is for interpolation reasons
+estimationParams.numSampleInterpolated = estimationParams.numSamplesPerIter*estimationParams.interp_coeff;
 
-
-tau = [2e-6];
-SPIOdistribution = zeros(512, 512, 2);
-SPIOdistribution(1:40, (225:275), 1) = 1;
-SPIOdistribution((1:40)+100, (225:275), 2) = 1;
-image_FOV_x = 0.05;
-image_FOV_z = 0.05;
-dx = image_FOV_x/size(SPIOdistribution,1);  % distance between each pixel (m)
-dz = image_FOV_z/size(SPIOdistribution,2); 
-
-for k=1:length(tau)
-    [row,col] = find(SPIOdistribution(:, :, k) == 1);
-    zloc =   unique(row)*dz - image_FOV_z/2;
-    xloc = unique(col)*dx - image_FOV_x/2;
-    SPIOlocation(k, :) = [xloc(ceil(end/2)) zloc(ceil(end/2))];
-end
-
-fileName = ['signal_' datestr(now,'dd-mmmm-yyyy_HH-MM-SS') '.mat'];
-matObj = matfile(fileName);
-matObj.Properties.Writable = true;
-
-% save simulation parameters
-matObj.type = robot_movement_type;
-matObj.params(1, 1:3) = [Gxx, Gyy, Gzz];
-matObj.params(1, 4) = diameter;
-matObj.params(1, 5) = Bp;
-matObj.params(1, 6) = f_drive;
-matObj.params(1, 7:8) = [fs, fs_mpi];
-matObj.params(1, 9:11) = [FOV_x, FOV_z, time];
-
-% create space for the simulation data
-signal_size = numSamplesPerIter/downsample;
-chunk = numSamplesPerIter/downsample;
-matObj.horizontalSignal_mpi_mat(numIters,signal_size) = 0;
-matObj.FFP_x(numIters,signal_size) = 0;
-matObj.FFP_z(numIters,signal_size) = 0;
-matObj.FFP_speed(numIters,signal_size) = 0;
-matObj.FFP_angle(numIters,signal_size) = 0;
-
-% start simulation
-nout = 0;
-x = linspace(-FOV_x/2, FOV_x/2, numLines); % robot arm movement in x direction w.r.t. time
-for k = 1:numIters
+tau_est_linear = zeros(1, numIters);
+tau_est_frequency = zeros(1, 692928);
+tau_lin_weighted = zeros(1, numIters);
+count = 1;
+for pfovIdx=1:numIters
     tic
+    % sliding window
+%     sig_idx = (1:(estimationParams.numSamplesPerIter-2)+2)+(estimationParams.numSample-2)*(pfovIdx-1); 
+    % non-sliding window    
+    sig_idx = (1:(estimationParams.numSamplesPerIter-2)+2)+(estimationParams.numSamplesPerIter-2)*(pfovIdx-1);
+    FFP_z_part(count) = FFP_z_fixed(sig_idx(end/2)) - FFP_drive_fixed(sig_idx(end/2));
+    FFP_x_part(count) = FFP_x_fixed(sig_idx(end/2));
     
-    t = ((k-1)*numSamplesPerIter:k*numPeriodsPerIter*numSamplePerPeriod)/fs;
-    
-    if strcmp(robot_movement_type, 'linear_rastered')
-        z = FOV_z/time*t - FOV_z/2; % robot arm movement in z direction w.r.t. time
-    else
-        z = repmat(SPIOlocation(1, 2), [1, numPeriodsPerIter*numSamplePerPeriod+1]);
-    end
-    drive = driveMag*cos(2*pi*f_drive*t); % drive field movement
-
-    FFP_x = repmat(x(noLine), [1, numPeriodsPerIter*numSamplePerPeriod+1]); % movement of FFP in x direction, for linear x is constant throughout the line
-    FFP_z = z+drive; % movement of FFP in z direction (robot arm movement in z direction + drive field movement, since drive field is in z direction as well)
-
-    zDifference = diff(FFP_z, 1, 2);
-    xDifference = diff(FFP_x, 1, 2);
-
-    FFP_speed = sqrt(zDifference.^2 + xDifference.^2);
-    FFP_angle = wrapTo360(round(atan2d(xDifference, zDifference), 1));    
-
-%     [FFP_x, FFP_z, FFP_speed, FFP_angle, x, z] = FFPtrajectory(FOV_x, FOV_z, fs, f_drive, time, driveMag, 'triangular');
-    angletUnique = unique(FFP_angle);
-    numAngle = length(angletUnique) ;
-
-   
-    % calculate colinear and trasnverse PSF(s) for each unique angle
-    [colinearPSF, transversePSF, X, Z] = generatePSF([Gxx Gyy Gzz], 21, FOV_x, FOV_z, dx, dz, angletUnique, numAngle); 
-
-
-    % pad the empty parts of the image so that it has same size with PSF(s),
-    % then compute colinear and transverse images for each unique angle
-    for l=1:length(tau)
-        [colinearIMG{l}, transverseIMG{l}] = generatePSFImages(SPIOdistribution(:,:,l), colinearPSF, transversePSF);
-    end
-
-
-    
-    for l=1:length(tau)
-        % generate colinear, transverse, horizontal coil and vertical coil signals
-        t_tau = (0:1/fs:tau(l)*15);
-        r_t = 1/tau(l)*exp(-t_tau./tau(l));
-        r_t = r_t/sum(r_t);
-        [colinearSignal, transverseSignal, horizontalSignal{l}, verticalSignal{l}] = ...
-            generateSignals(colinearIMG{l}, transverseIMG{l}, FFP_x, FFP_z, FFP_speed, FFP_angle, angletUnique, FOV_x, FOV_z, dx, dz, r_t);
-
-        % downsample and high pass filter the received signals
-        horizontalSignal_mpi{l} = horizontalSignal{l}(1:downsample:end);
-        verticalSignal_mpi{l} = verticalSignal{l}(1:downsample:end);
-    end
-
-    horizontalSignal_mpi_mat = zeros(size(horizontalSignal_mpi{1}));
-    for l=1:length(tau)
-        horizontalSignal_mpi_mat = horizontalSignal_mpi_mat + horizontalSignal_mpi{l};
-    end
-  
-    fprintf('Writing %d of %d, ',nout,signal_size*numIters);
-    chunkSize = min(chunk,signal_size*numIters-nout);
-    matObj.horizontalSignal_mpi_mat(k,1:signal_size) = horizontalSignal_mpi_mat;
-    matObj.FFP_x(k,1:signal_size) = FFP_x(1:downsample:end-1);
-    matObj.FFP_z(k,1:signal_size) = FFP_z(1:downsample:end-1);
-    matObj.FFP_speed(k,1:signal_size) = FFP_speed(1:downsample:end);
-    matObj.FFP_angle(k,1:signal_size) = FFP_angle(1:downsample:end);
-    nout = nout + chunkSize;
-    
-    
-    
-    endTime(k) = toc;
-    fprintf('Iter: %i of %i, Time: %d\n', k, numIters, endTime(k));
+    [tau_est_frequency(count), tau_est_linear(sig_idx), tau_lin_weighted(count)] = estimateTau_func(MPIparams, estimationParams, partial_signal_interp(sig_idx), 5);
+%     err(count) = calculateError(MPIparams, estimationParams, partial_signal_interp(sig_idx), tau_est_linear(count));
+    toc
+    count = count + 1;
 end
 
-totalTime = sum(endTime)
+figure; scatter3(FFP_x_fixed, FFP_z_fixed, tau_est_linear*10^6,  3, tau_est_linear*10^6)
+xlabel('x-axis'); ylabel('z-axis'); zlabel('\tau (us)')
 
-FFP_x = transpose(matObj.FFP_x); FFP_x = FFP_x(:);
-FFP_z = transpose(matObj.FFP_z); FFP_z = FFP_z(:);
-horizontalSignal_mpi_mat = transpose(matObj.horizontalSignal_mpi_mat); horizontalSignal_mpi_mat = horizontalSignal_mpi_mat(:);
 
-figure; scatter3(FFP_x, FFP_z, horizontalSignal_mpi_mat, 4, horizontalSignal_mpi_mat);  view(2); 
-xlim([-FOV_x/2 FOV_x/2]); ylim([-FOV_z/2 FOV_z/2])
+% parameters
+Physicsparams = setPhysicsParams(); % physics parameters
+MPIparams = setMPIParams(Physicsparams, 'complex_rastered', 0.1); % MPI machine parameters
+Physicsparams.fs = MPIparams.fs;
+SPIOparams = setSPIOParams(Physicsparams, 512, 2e-6); % SPIO parameters
+Simparams = setSimulationParams(MPIparams, Physicsparams); % Simulation parameters
+
+
+figure;
+x_axis = (-SPIOparams.image_FOV_x/2:SPIOparams.dx:SPIOparams.image_FOV_x/2-SPIOparams.dx);
+z_axis = (-SPIOparams.image_FOV_z/2:SPIOparams.dz:SPIOparams.image_FOV_z/2-SPIOparams.dz);
+distribution = zeros(size(SPIOparams.SPIOdistribution(:,:,1)));
+for k=1:length(SPIOparams.diameter)
+    distribution = distribution + SPIOparams.SPIOdistribution(:,:,k);
+end
+surf(x_axis, z_axis, distribution); shading interp
+hold on;
+% preprocessing in order to find all the angles to calculate the necessary
+% PSFs
+maxIdx = 0;
+for k=1:Simparams.divNum
+    maxIdx = max(maxIdx, Simparams.divL(k*2)-Simparams.divL((k-1)*2+1)+1);
+end
+FFP_x = zeros(Simparams.divNum, maxIdx*Simparams.samplePerPeriod/Simparams.downsample+2);
+FFP_z = zeros(size(FFP_x));
+uniqueAngle_sim = [];
+for k=1:Simparams.divNum
+    idx = [Simparams.divL((k-1)*2+1) Simparams.divL(k*2)];
+    simIdx = ((Simparams.simPeriods(idx(1))-1)*Simparams.samplePerPeriod+1:(Simparams.simPeriods(idx(2))*Simparams.samplePerPeriod+2*Simparams.downsample+1));
+    t = gpuArray(simIdx/Simparams.fs_phsy);
+    FFPparams = generateFFP(gpudev, t, MPIparams, Simparams, [3, 0]); 
+    uniqueAngle_sim = [uniqueAngle_sim, FFPparams.FFP_uniqueAngle];
+    plot(FFPparams.FFP_x(1:Simparams.downsample:end-1), FFPparams.FFP_z(1:Simparams.downsample:end-1), 'color', [0 0.4470 0.7410])
+end
+view(2)
+xlabel('x-axis'); ylabel('z-axis')
+
+F = scatteredInterpolant(FFP_x_fixed', FFP_z_fixed', tau_est_linear'*10^6);
+F.Method = 'linear';
+[xq, zq] = meshgrid(x_axis, z_axis);
+Vq = F(xq, zq);
+
+figure; surf(x_axis, z_axis, Vq.*distribution)
+shading interp
+xlabel('x-axis'); ylabel('z-axis'); zlabel('\tau (\mu s)')
+
+mean(Vq(distribution~=0))
+std(Vq(distribution~=0))

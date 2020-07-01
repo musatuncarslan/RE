@@ -53,9 +53,12 @@ end
 
 t = (0:Simparams.fs_mpi*time-1)/Simparams.fs_mpi;
 x = MPIparams.FOV_x*(2*abs(2*(t/p - floor(t/p + 0.5)))-1)/2;
-z = MPIparams.FOV_z/time*t - MPIparams.FOV_z/2;
+z = MPIparams.FOV_z/time*t - MPIparams.FOV_z/2 + MPIparams.driveMag*cos(2*pi*MPIparams.f_drive*t);
 
-figure; plot(x_partial, z_partial, '*'); hold on;
-plot(x, z, '.-');
-xlabel('x-axis'); ylabel('z-axis')
-legend('Partial Trajectory', 'Complete Trajectory')
+figure;  
+p1=plot3(x*100, z*100, zeros(1, length(z)), 'DisplayName', 'FFP Movement + Drive field'); hold on;
+p2=plot3(x_partial*100, z_partial*100, zeros(1, length(z_partial)), 'DisplayName', 'FFP Movement');
+xlim([0 0.02]); ylim([-1 1])
+xlabel('x-axis (cm)'); ylabel('z-axis (cm)'); zlabel('y-axis (cm)')
+legend('Location','northeast')
+title({'Total FFP Movement under Drive Field (zoomed)', ['f_d = ' num2str(MPIparams.f_drive*1e-3) ' kHz']})

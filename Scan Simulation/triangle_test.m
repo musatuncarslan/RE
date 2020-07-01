@@ -78,7 +78,7 @@ for particleNo = 1:length(SPIOparams.diameter)
         FFPparams = generateFFP(gpudev, t, MPIparams, Simparams, [3, 0]); % simulate FFP
         wait(gpudev); clear t;
         [signals_sep, SPIOparams] = generateSe(gpudev, FFPparams, MPIparams, SPIOparams, Simparams, particleNo, 50); % simulate signal
-        toc
+        
         signal(k, 1:length(signals_sep.horizontalSignal)) = signal(k,1:length(signals_sep.horizontalSignal)) + gather(signals_sep.horizontalSignal); 
         wait(gpudev); clear t;
         
@@ -88,6 +88,7 @@ for particleNo = 1:length(SPIOparams.diameter)
             drive(k, 1:length(signals_sep.horizontalSignal)) = gather(FFPparams.drive(1:Simparams.downsample:end-1));
         end
         wait(gpudev); clear signals_sep FFPparams;
+        toc
     end
 end
 
