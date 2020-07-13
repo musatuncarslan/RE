@@ -55,10 +55,14 @@ t = (0:Simparams.fs_mpi*time-1)/Simparams.fs_mpi;
 x = MPIparams.FOV_x*(2*abs(2*(t/p - floor(t/p + 0.5)))-1)/2;
 z = MPIparams.FOV_z/time*t - MPIparams.FOV_z/2 + MPIparams.driveMag*cos(2*pi*MPIparams.f_drive*t);
 
+Rsx = MPIparams.FOV_x*2*MPIparams.numTrianglePeriods/MPIparams.time
+Rsz = MPIparams.slewRate
+
 figure;  
 p1=plot3(x*100, z*100, zeros(1, length(z)), 'DisplayName', 'FFP Movement + Drive field'); hold on;
 p2=plot3(x_partial*100, z_partial*100, zeros(1, length(z_partial)), 'DisplayName', 'FFP Movement');
-xlim([0 0.02]); ylim([-1 1])
+xlim([-2.5 2.5]); ylim([-3 3])
 xlabel('x-axis (cm)'); ylabel('z-axis (cm)'); zlabel('y-axis (cm)')
 legend('Location','northeast')
-title({'Total FFP Movement under Drive Field (zoomed)', ['f_d = ' num2str(MPIparams.f_drive*1e-3) ' kHz']})
+title({'Total FFP Movement under Drive Field (zoomed)', ['f_d = ' num2str(MPIparams.f_drive*1e-3) ' kHz, ', ...
+    'R_{s,z} = ' num2str(round(Rsz, 3)) ' T/s, ', 'R_{s,x} = ' num2str(round(Rsx, 3)) ' T/s']})

@@ -1,20 +1,20 @@
-function [Simparams] = setSimulationParams(MPIparams, Physicsparams)
+function [Simparams, MPIparams] = setSimulationParams(MPIparams, Physicsparams)
     Simparams = struct;
     
-    fs = Physicsparams.fs;
     ffp_type = MPIparams.ffp_type;
-    time = MPIparams.time; % time to traverse whole FOV
-   
+    
     
     % find which periods are to be simulated
     if strcmpi(ffp_type, 'linear_rastered')
-        simPeriodsz = findPeriodsZ(MPIparams);
-        Simparams.simPeriods = simPeriodsz; % periods to simulate
+        MPIparams = adjustFOVz(MPIparams); % adjust z-FOV if necessary
+        zPeriodsSim = simZperiods(MPIparams);
+        Simparams.simPeriods = zPeriodsSim; % periods to simulate
     elseif strcmpi(ffp_type, 'fixed')
     elseif strcmpi(ffp_type, 'complex_rastered')
-        [simPeriodsx] = findPeriodsX(MPIparams);
-        simPeriodsz = findPeriodsZ(MPIparams);
-        Simparams.simPeriods = intersect(simPeriodsx,simPeriodsz,'stable'); % periods to simulate
+        MPIparams = adjustFOVz(MPIparams); % adjust z-FOV if necessary
+        zPeriodsSim = simZperiods(MPIparams);
+        xPeriodsSim = simXperiods(MPIparams);
+        Simparams.simPeriods = intersect(xPeriodsSim,zPeriodsSim,'stable'); % periods to simulate
     end
     
     % adjust the simulation sampling frequency so that each period has
@@ -31,50 +31,13 @@ function [Simparams] = setSimulationParams(MPIparams, Physicsparams)
     Simparams.fs_phsy = fs_phsy;
     Simparams.downsample = fs_phsy/fs_mpi;
     
-    numPeriods = time*f_drive; % number of drive periods during whole FOV scan (this is hopefully an integer)
-    if (floor(numPeriods)~=numPeriods)
-        error('Error. Make sure that time*f_drive is an integer. \n\n \t You can slightly adjust "%s" for this.', 'time')
-    end
-    Simparams.samplePerPeriod = fs*time/numPeriods; % number of samples per period
+    MPIparams.fs = fs_mpi;
     
+    time = MPIparams.time; fs = Simparams.fs_phsy;
+    Simparams.samplePerPeriod = fs_phsy/f_drive; % number of samples per period
     
-    divNo = find(diff(Simparams.simPeriods) ~= 1); % index of division
-    if (isempty(divNo) ~= 1)
-        divNo = [0 divNo length(Simparams.simPeriods)];
-        divNum = length(divNo)-1; % number of divions
-        divL = [];
-        for k=1:divNum
-            divL = [divL divNo(k)+1 divNo(k+1)]; % length of each division
-        end
-    else
-        divNum = 1;
-        divL = [1 length(Simparams.simPeriods)];
-    end
-    Simparams.divL = divL;
-    Simparams.divNum = divNum;
-    
-    
-%     
-%     ffp_type = MPIparams.ffp_type;
-%     
-%     if strcmpi(ffp_type, 'linear_rastered')
-%         [startIter, endIter, samplesPerIter] = linearRasteredIteration(MPIparams, Physicsparams);
-%         numIters = endIter - startIter+1;
-%         Simparams.startIter = startIter;
-%         Simparams.endIter = endIter;
-%     elseif strcmpi(ffp_type, 'fixed')
-%         numIters = MPIparams.cycle;
-%         total_time = numIters/MPIparams.f_drive;
-%         samplesPerIter = Physicsparams.fs*total_time/numIters;
-%         Simparams.startIter = 1;
-%         Simparams.endIter = Simparams.startIter + numIters - 1;
-%     elseif strcmpi(ffp_type, 'triangular')
-%     end
-%     
-% 
-%     Simparams.numSamplesPerIter = samplesPerIter;
-%     Simparams.numIters = numIters;
-% 
-%     Simparams.downsample = Physicsparams.fs/MPIparams.fs; % downsample ratio
+    [Simparams.div, Simparams.divNum] = partitionPeriods(Simparams);
+
+
 
 end

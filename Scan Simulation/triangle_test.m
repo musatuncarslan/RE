@@ -10,23 +10,23 @@ gpudev = gpuDevice(1); % get the GPU device
 Physicsparams = setPhysicsParams(); % physics parameters
 MPIparams = setMPIParams(Physicsparams, 'complex_rastered', 0.1); % MPI machine parameters
 SPIOparams = setSPIOParams(Physicsparams, 512, 2e-6); % SPIO parameters
-Simparams = setSimulationParams(MPIparams, Physicsparams); % Simulation parameters
+[Simparams, MPIparams] = setSimulationParams(MPIparams, Physicsparams); % Simulation parameters
 
-
+divisors(length(Simparams.simPeriods))
 % preprocessing in order to find all the angles to calculate the necessary
 % PSFs
 maxIdx = 0;
 for k=1:Simparams.divNum
-    maxIdx = max(maxIdx, Simparams.divL(k*2)-Simparams.divL((k-1)*2+1)+1);
+    maxIdx = max(maxIdx, Simparams.div(k*2)-Simparams.div((k-1)*2+1)+1);
 end
 FFP_x = zeros(Simparams.divNum, maxIdx*Simparams.samplePerPeriod/Simparams.downsample+2);
 FFP_z = zeros(size(FFP_x));
 uniqueAngle_sim = [];
 for k=1:Simparams.divNum
-    idx = [Simparams.divL((k-1)*2+1) Simparams.divL(k*2)];
+    idx = [Simparams.div((k-1)*2+1) Simparams.div(k*2)];
     simIdx = ((Simparams.simPeriods(idx(1))-1)*Simparams.samplePerPeriod+1:(Simparams.simPeriods(idx(2))*Simparams.samplePerPeriod+2*Simparams.downsample+1));
     t = gpuArray(simIdx/Simparams.fs_phsy);
-    FFPparams = generateFFP(gpudev, t, MPIparams, Simparams, [3, 0]); 
+    FFPparams = generateFFP(gpudev, t, MPIparams); 
     uniqueAngle_sim = [uniqueAngle_sim, FFPparams.FFP_uniqueAngle];
     FFP_x(k, 1:(idx(2)-idx(1)+1)*Simparams.samplePerPeriod/Simparams.downsample+2) = gather(FFPparams.FFP_x(1:Simparams.downsample:end-1));
     FFP_z(k, 1:(idx(2)-idx(1)+1)*Simparams.samplePerPeriod/Simparams.downsample+2) = gather(FFPparams.FFP_z(1:Simparams.downsample:end-1));
@@ -34,7 +34,7 @@ end
 angleVec = unique(uniqueAngle_sim);
 
 % plotting trajectory and SPIOs for check
-figure;
+figure; hold on;
 x_axis = (-SPIOparams.image_FOV_x/2:SPIOparams.dx:SPIOparams.image_FOV_x/2-SPIOparams.dx);
 z_axis = (-SPIOparams.image_FOV_z/2:SPIOparams.dz:SPIOparams.image_FOV_z/2-SPIOparams.dz);
 for k=1:length(SPIOparams.diameter)
@@ -42,7 +42,7 @@ for k=1:length(SPIOparams.diameter)
     hold on;
 end
 for k=1:Simparams.divNum
-    idx = [Simparams.divL((k-1)*2+1) Simparams.divL(k*2)];
+    idx = [Simparams.div((k-1)*2+1) Simparams.div(k*2)];
     plot(FFP_x(k, 1:(idx(2)-idx(1)+1)*Simparams.samplePerPeriod/Simparams.downsample+2), FFP_z(k, 1:(idx(2)-idx(1)+1)*Simparams.samplePerPeriod/Simparams.downsample+2), 'color', [0 0.4470 0.7410])
 end
 view(2)
@@ -54,14 +54,14 @@ wait(gpudev); clear FFPparams uniqueAngle_sim t;
 % actual signal generation
 maxIdx = 0;
 for k=1:Simparams.divNum
-    maxIdx = max(maxIdx, Simparams.divL(k*2)-Simparams.divL((k-1)*2+1)+1);
+    maxIdx = max(maxIdx, Simparams.div(k*2)-Simparams.div((k-1)*2+1)+1);
 end
 signal = zeros(Simparams.divNum, maxIdx*Simparams.samplePerPeriod/Simparams.downsample+2);
 sigL = size(signal);
 FFP_x = zeros(sigL);
 FFP_z = zeros(sigL);
 drive = zeros(sigL);
-divL = Simparams.divL;
+div = Simparams.div;
 for particleNo = 1:length(SPIOparams.diameter)
     % efficient functions, uses HDD instead of RAM, should not give any
     % memory errors, uses HDF5 file structure
@@ -72,10 +72,10 @@ for particleNo = 1:length(SPIOparams.diameter)
     % generate the MPI signal
     for k=1:Simparams.divNum
         tic
-        idx = [divL((k-1)*2+1) divL(k*2)]; % get the start and end indices of the necessary periods to be simulated, then the indices for each sample is generated
+        idx = [div((k-1)*2+1) div(k*2)]; % get the start and end indices of the necessary periods to be simulated, then the indices for each sample is generated
         simIdx = ((Simparams.simPeriods(idx(1))-1)*Simparams.samplePerPeriod+1:(Simparams.simPeriods(idx(2))*Simparams.samplePerPeriod+2*Simparams.downsample+1));
         t = gpuArray(simIdx/Simparams.fs_phsy); % divide the indices for each sample to sampling frequency to get the time vector
-        FFPparams = generateFFP(gpudev, t, MPIparams, Simparams, [3, 0]); % simulate FFP
+        FFPparams = generateFFP(gpudev, t, MPIparams); % simulate FFP
         wait(gpudev); clear t;
         [signals_sep, SPIOparams] = generateSe(gpudev, FFPparams, MPIparams, SPIOparams, Simparams, particleNo, 50); % simulate signal
         

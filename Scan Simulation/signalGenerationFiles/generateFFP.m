@@ -1,4 +1,4 @@
-function [FFPparams] = generateFFP(gpudev, t, MPIparams, Simparams, sigmoidParams)
+function [FFPparams] = generateFFP(gpudev, t, MPIparams)
 
     FOV_z = MPIparams.FOV_z;
     FOV_x = MPIparams.FOV_x;

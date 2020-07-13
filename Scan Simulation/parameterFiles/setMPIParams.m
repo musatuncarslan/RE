@@ -1,13 +1,16 @@
-function MPIparams = setMPIParams(Physicsparams, ffp_type, rs)
+function MPIparams = setMPIParams(Physicsparams, varargin)
+    ffp_type = varargin{1};
+    rs = varargin{2};
+    
     MPIparams = struct;
-
+    
     MPIparams.ffp_type = ffp_type;
     if strcmp(MPIparams.ffp_type, 'fixed') == 1
-        MPIparams.slewRate = 0;
+        MPIparams.Rsz = 0;
     elseif strcmp(MPIparams.ffp_type, 'linear_rastered') == 1
-        MPIparams.slewRate = rs; % slew rate (T/s)
+        MPIparams.Rsz = rs; % slew rate (T/s)
     elseif strcmp(MPIparams.ffp_type, 'complex_rastered') == 1
-        MPIparams.slewRate = rs; % slew rate (T/s)
+        MPIparams.Rsz = rs; % slew rate (T/s)
     end
     % gradients (T/m) (current scanner)
     MPIparams.Gxx = 4.8;
@@ -15,7 +18,7 @@ function MPIparams = setMPIParams(Physicsparams, ffp_type, rs)
     MPIparams.Gzz = 2.4;
     
     MPIparams.Bp = 10e-3; % Drive field (T)
-    MPIparams.f_drive = 20e3; % drive field frequency
+    MPIparams.f_drive = 10e3; % drive field frequency
 
     
     Hp=MPIparams.Bp/Physicsparams.mu0; % magnetization moment
@@ -28,20 +31,15 @@ function MPIparams = setMPIParams(Physicsparams, ffp_type, rs)
     
     if strcmp(MPIparams.ffp_type, 'linear_rastered') == 1
         % for linear rastered
-        MPIparams.time = MPIparams.FOV_z*MPIparams.Gzz*(1/MPIparams.slewRate); % time (seconds)
+        MPIparams.time = MPIparams.FOV_z*MPIparams.Gzz*(1/MPIparams.Rsz); % time (seconds)
         MPIparams.traversedFOVz = [-0.01 0.01]; % traversed fov in the simulation in z-axis (m)
+        MPIparams.numTrianglePeriods = 0;
     elseif strcmp(MPIparams.ffp_type, 'complex_rastered') == 1
         % for complex rastered
-        MPIparams.time = MPIparams.FOV_z*MPIparams.Gzz*(1/MPIparams.slewRate); % time (seconds)
+        MPIparams.time = MPIparams.FOV_z*MPIparams.Gzz*(1/MPIparams.Rsz); % time (seconds)
         MPIparams.numTrianglePeriods = 5;
         MPIparams.traversedFOVz = [-0.00 0.006];
-        MPIparams.traversedFOVx = [-0.02 0.02];
+        MPIparams.traversedFOVx = [-0.02 0.0201];
     end
-
-    
-
-    
-    % related to time constant estimation
-    MPIparams.interp_coeff = 10;
-   
 end
+
