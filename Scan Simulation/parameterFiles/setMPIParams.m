@@ -1,17 +1,7 @@
-function MPIparams = setMPIParams(Physicsparams, varargin)
-    ffp_type = varargin{1};
-    rs = varargin{2};
+function MPIparams = setMPIParams(Physicsparams, rs)
+
+    MPIparams.Rs = rs; % slew rate vector [x,y,z] (T/s)
     
-    MPIparams = struct;
-    
-    MPIparams.ffp_type = ffp_type;
-    if strcmp(MPIparams.ffp_type, 'fixed') == 1
-        MPIparams.Rsz = 0;
-    elseif strcmp(MPIparams.ffp_type, 'linear_rastered') == 1
-        MPIparams.Rsz = rs; % slew rate (T/s)
-    elseif strcmp(MPIparams.ffp_type, 'complex_rastered') == 1
-        MPIparams.Rsz = rs; % slew rate (T/s)
-    end
     % gradients (T/m) (current scanner)
     MPIparams.Gxx = 4.8;
     MPIparams.Gyy = 2.4;
@@ -28,18 +18,10 @@ function MPIparams = setMPIParams(Physicsparams, varargin)
     MPIparams.fs = 2e6; % sample frequency of the MPI system (Hz)
     MPIparams.FOV_z = 0.06; % FOV in z-axis (meters) (bore axis)
     MPIparams.FOV_x = 0.05; % FOV in x-axis (meters)
-    
-    if strcmp(MPIparams.ffp_type, 'linear_rastered') == 1
-        % for linear rastered
-        MPIparams.time = MPIparams.FOV_z*MPIparams.Gzz*(1/MPIparams.Rsz); % time (seconds)
-        MPIparams.traversedFOVz = [-0.01 0.01]; % traversed fov in the simulation in z-axis (m)
-        MPIparams.numTrianglePeriods = 0;
-    elseif strcmp(MPIparams.ffp_type, 'complex_rastered') == 1
-        % for complex rastered
-        MPIparams.time = MPIparams.FOV_z*MPIparams.Gzz*(1/MPIparams.Rsz); % time (seconds)
-        MPIparams.numTrianglePeriods = 5;
-        MPIparams.traversedFOVz = [-0.00 0.006];
-        MPIparams.traversedFOVx = [-0.02 0.0201];
-    end
+   
+    MPIparams.time = MPIparams.FOV_z*MPIparams.Gzz*(1/MPIparams.Rs(3)); % time (seconds)
+    MPIparams.numTrianglePeriods = 5;
+
+
 end
 

@@ -2,12 +2,12 @@ function SPIOparams = setSPIOParams(Physicsparams, pos, tau_val)
     SPIOparams = struct;
     
     SPIOparams.diameter = [25]; % (nm)
-    SPIOparams.tau = [2e-6, 4e-6, 3e-6]; % (S)
+    SPIOparams.tau = [4e-6, 4e-6, 3e-6]; % (S)
     
     % spio distribution in 2D
     SPIOparams.SPIOdistribution = zeros(501, 501, length(SPIOparams.diameter)); 
 %     SPIOparams.SPIOdistribution((251-20:251+20)+50, (201-20:201+20), 1) = 1;
-    SPIOparams.SPIOdistribution((251-20:251+20)+30, (251-20:251+20), 1) = 1;
+    SPIOparams.SPIOdistribution((251-20:251+20)+65, (251-20:251+20), 1) = 1;
 %     SPIOparams.SPIOdistribution((251-20:251+20)+10, (301-20:301+20), 3) = 1;
 
     % extent of SPIO distribution 

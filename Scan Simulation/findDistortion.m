@@ -1,7 +1,7 @@
 function [del_t, a_t] = findDistortion(MPIparams)
     Bp = MPIparams.Bp;
     Gzz = MPIparams.Gzz;
-    R = MPIparams.Rsz/MPIparams.Gzz;
+    R = MPIparams.Rs(3)/MPIparams.Gzz;
     f_d = MPIparams.f_drive;
 
     arg = 2*pi*f_d;

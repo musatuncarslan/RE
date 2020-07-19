@@ -8,10 +8,8 @@ function [tau_est_frequency, tau_est_linear, tau_lin_weighted] = estimateTau_fun
     t_interp = idx_interp/MPIparams.fs/estimationParams.interp_coeff;
 
     sig = interp1(t_sig, signal,t_interp, 'linear', 'extrap');
-
-
     
-    pos = sig((1:end-MPIparams.fs/MPIparams.f_drive/2*estimationParams.interp_coeff-2*estimationParams.interp_coeff)); 
+    pos = sig((1:end-MPIparams.fs/MPIparams.f_drive/2*estimationParams.interp_coeff-2*estimationParams.interp_coeff)+400); 
     neg = sig(MPIparams.fs/MPIparams.f_drive/2*estimationParams.interp_coeff+(2*estimationParams.interp_coeff+1):end); 
 
     L = length(neg);

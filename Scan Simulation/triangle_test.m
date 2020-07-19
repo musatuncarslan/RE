@@ -8,11 +8,12 @@ gpudev = gpuDevice(1); % get the GPU device
 
 % parameters
 Physicsparams = setPhysicsParams(); % physics parameters
-MPIparams = setMPIParams(Physicsparams, 'complex_rastered', 0.1); % MPI machine parameters
+MPIparams = setMPIParams(Physicsparams, [0.5, 0, 0.1]); % MPI machine parameters
 SPIOparams = setSPIOParams(Physicsparams, 512, 2e-6); % SPIO parameters
 [Simparams, MPIparams] = setSimulationParams(MPIparams, Physicsparams); % Simulation parameters
 
-divisors(length(Simparams.simPeriods))
+length(Simparams.simPeriods)
+
 % preprocessing in order to find all the angles to calculate the necessary
 % PSFs
 maxIdx = 0;

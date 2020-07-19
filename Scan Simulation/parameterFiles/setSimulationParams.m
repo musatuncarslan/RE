@@ -1,17 +1,17 @@
 function [Simparams, MPIparams] = setSimulationParams(MPIparams, Physicsparams)
     Simparams = struct;
     
-    ffp_type = MPIparams.ffp_type;
     
-    
-    % find which periods are to be simulated
-    if strcmpi(ffp_type, 'linear_rastered')
+    if ((MPIparams.Rs(3) ~= 0) && (MPIparams.Rs(1) == 0))
         MPIparams = adjustFOVz(MPIparams); % adjust z-FOV if necessary
         zPeriodsSim = simZperiods(MPIparams);
         Simparams.simPeriods = zPeriodsSim; % periods to simulate
-    elseif strcmpi(ffp_type, 'fixed')
-    elseif strcmpi(ffp_type, 'complex_rastered')
-        MPIparams = adjustFOVz(MPIparams); % adjust z-FOV if necessary
+    elseif ((MPIparams.Rs(3) ~= 0) && (MPIparams.Rs(1) ~= 0))
+        MPIparams = adjustFOV(MPIparams); % adjust z-FOV if necessary
+        
+        MPIparams.traversedFOVz = [0.00 MPIparams.FOV_z/(MPIparams.numTrianglePeriods*2)];
+        MPIparams.traversedFOVx = [-0.01 0.01];
+        
         zPeriodsSim = simZperiods(MPIparams);
         xPeriodsSim = simXperiods(MPIparams);
         Simparams.simPeriods = intersect(xPeriodsSim,zPeriodsSim,'stable'); % periods to simulate
@@ -33,7 +33,6 @@ function [Simparams, MPIparams] = setSimulationParams(MPIparams, Physicsparams)
     
     MPIparams.fs = fs_mpi;
     
-    time = MPIparams.time; fs = Simparams.fs_phsy;
     Simparams.samplePerPeriod = fs_phsy/f_drive; % number of samples per period
     
     [Simparams.div, Simparams.divNum] = partitionPeriods(Simparams);

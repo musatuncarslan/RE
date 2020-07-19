@@ -3,15 +3,15 @@ close all
 clc
 
 format long;
+format compact;
 
 gpudev = gpuDevice(1); % get the GPU device
 
 % parameters
 Physicsparams = setPhysicsParams(); % physics parameters
-MPIparams = setMPIParams(Physicsparams, 'complex_rastered', 0.1); % MPI machine parameters
+MPIparams = setMPIParams(Physicsparams, [0.5, 0, 0.1]); % MPI machine parameters
 SPIOparams = setSPIOParams(Physicsparams, 512, 2e-6); % SPIO parameters
 [Simparams, MPIparams] = setSimulationParams(MPIparams, Physicsparams); % Simulation parameters
-
 
 info = h5info('./temp/signal.h5');
 
@@ -48,8 +48,8 @@ for k=1:numIters
     L = L+length(vecIdx);
 end
 
-% figure; scatter3(FFP_x_fixed*100, FFP_z_fixed*100, horizontalSignal,  3, horizontalSignal)
-% xlabel('x-axis (cm)'); ylabel('z-axis (cm)'); zlabel('s(t)'); title('MPI Signal')
+figure; scatter3(FFP_x_fixed*100, FFP_z_fixed*100, horizontalSignal,  3, horizontalSignal)
+xlabel('x-axis (cm)'); ylabel('z-axis (cm)'); zlabel('s(t)'); title('MPI Signal')
 
 
 L = length(horizontalSignal);
@@ -113,13 +113,6 @@ figure; scatter3(FFP_x_fixed, FFP_z_fixed, tau_est_linear*10^6,  3, tau_est_line
 xlabel('x-axis'); ylabel('z-axis'); zlabel('\tau (us)')
 
 
-% parameters
-Physicsparams = setPhysicsParams(); % physics parameters
-MPIparams = setMPIParams(Physicsparams, 'complex_rastered', 0.1); % MPI machine parameters
-Physicsparams.fs = MPIparams.fs;
-SPIOparams = setSPIOParams(Physicsparams, 512, 2e-6); % SPIO parameters
-[Simparams, MPIparams] = setSimulationParams(MPIparams, Physicsparams); % Simulation parameters
-
 
 figure;
 x_axis = (-SPIOparams.image_FOV_x/2:SPIOparams.dx:SPIOparams.image_FOV_x/2-SPIOparams.dx);
@@ -159,7 +152,6 @@ figure; surf(x_axis*100, z_axis*100, Vq.*distribution)
 shading interp
 xlabel('x-axis (cm)'); ylabel('z-axis (cm)'); zlabel('\tau (\mu s)')
 axis tight; title(['Estimation Surface, f_d = ' num2str(MPIparams.f_drive*1e-3) ' kHz']); 
-xlim([-1 1]); ylim([-1 1])
 colorbar; 
 % view(2);
 
@@ -168,6 +160,11 @@ stdTau = [];
 for k=1:length(SPIOparams.diameter)
     meanTau = [meanTau mean(Vq(SPIOparams.SPIOdistribution(:,:,k)~=0))];
     stdTau = [stdTau std(Vq(SPIOparams.SPIOdistribution(:,:,k)~=0))];
+    RMSE = sqrt(sum((Vq(SPIOparams.SPIOdistribution(:,:,k)~=0)-meanTau(k)).^2)/numel(find(SPIOparams.SPIOdistribution(:,:,k)~=0)));
 end
-meanTau
-stdTau
+MPIparams.Rs(1)
+round(meanTau, 3)
+round(stdTau, 3)
+nRMSE = round(RMSE/meanTau, 3)
+nRMSE = round(RMSE/(max(Vq(SPIOparams.SPIOdistribution(:,:,k)~=0))-min(Vq(SPIOparams.SPIOdistribution(:,:,k)~=0))), 3)
+
