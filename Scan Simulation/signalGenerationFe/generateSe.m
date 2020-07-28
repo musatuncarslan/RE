@@ -32,10 +32,8 @@ function [signal, SPIOparams] = generateSe(gpudev, FFPparams, MPIparams, SPIOpar
     iaP = diff(ia);
     iaPneq1 = iaP(find(iaP ~= 1));
     ianeq1 = ia(find(iaP ~= 1));
-
     is = ianeq1(1:end-1)+iaPneq1(1:end-1);
     ie = ianeq1(2:end);
-
     for k=1:length(is)
         tempAngleVec = is(k):ie(k);
         numAngle = length(tempAngleVec);
@@ -43,7 +41,13 @@ function [signal, SPIOparams] = generateSe(gpudev, FFPparams, MPIparams, SPIOpar
         if ((numAngle/div) > numIters{k})
             numIters{k} = numIters{k} + 1;
         end
-        iterVec{k} = [div*ones(1, numIters{k}-1), mod(numAngle, div)];
+        if mod(numAngle, div) == 0
+            addi = div;
+        else
+            addi = mod(numAngle, div);
+        end
+        
+        iterVec{k} = [div*ones(1, numIters{k}-1), addi];
         idxVec{k} = [0 cumsum(iterVec{k})]+tempAngleVec(1)-1;
     end
 
@@ -59,9 +63,9 @@ function [signal, SPIOparams] = generateSe(gpudev, FFPparams, MPIparams, SPIOpar
     transverseIMG = gpuArray.zeros(zL, xL, div);
     for j=1:length(numIters)       
         for l=1:numIters{j}
-            colinearIMG(:,:,1:iterVec{j}(l)) = (h5read('./temp/PSF.h5','/colinearIMG', [1 1 idxVec{j}(l)+1], [zL xL iterVec{j}(l)]));
-            transverseIMG(:,:,1:iterVec{j}(l)) = (h5read('./temp/PSF.h5','/transverseIMG', [1 1 idxVec{j}(l)+1], [zL xL iterVec{j}(l)]));
             try
+                colinearIMG(:,:,1:iterVec{j}(l)) = (h5read('./temp/PSF.h5','/colinearIMG', [1 1 idxVec{j}(l)+1], [zL xL iterVec{j}(l)]));
+                transverseIMG(:,:,1:iterVec{j}(l)) = (h5read('./temp/PSF.h5','/transverseIMG', [1 1 idxVec{j}(l)+1], [zL xL iterVec{j}(l)]));
                 partialAngle = angleVec(idxVec{j}(l)+1:idxVec{j}(l+1));
             catch ME
                 aa = 5;

@@ -8,7 +8,7 @@ gpudev = gpuDevice(1); % get the GPU device
 
 % parameters
 Physicsparams = setPhysicsParams(); % physics parameters
-MPIparams = setMPIParams(Physicsparams, [0.5, 0, 0.1]); % MPI machine parameters
+MPIparams = setMPIParams(Physicsparams, [5, 0, 2.5]); % MPI machine parameters
 SPIOparams = setSPIOParams(Physicsparams, 512, 2e-6); % SPIO parameters
 [Simparams, MPIparams] = setSimulationParams(MPIparams, Physicsparams); % Simulation parameters
 
@@ -67,7 +67,7 @@ for particleNo = 1:length(SPIOparams.diameter)
     % efficient functions, uses HDD instead of RAM, should not give any
     % memory errors, uses HDF5 file structure
     tic
-    generatePSFe(gpudev, MPIparams, SPIOparams, angleVec, particleNo, 50); 
+    generatePSFe(gpudev, MPIparams, SPIOparams, angleVec, particleNo, 40); 
     toc
 
     % generate the MPI signal

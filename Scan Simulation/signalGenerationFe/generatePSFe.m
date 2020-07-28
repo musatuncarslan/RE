@@ -16,7 +16,12 @@ function generatePSFe(gpudev, MPIparams, SPIOparams, angleVec, particleNo, div)
     if ((numAngle/div) > numIters)
         numIters = numIters + 1;
     end
-    iterVec = [div*ones(1, numIters-1), mod(numAngle, div)];
+    if mod(numAngle, div) == 0
+        addi = div;
+    else
+        addi = mod(numAngle, div);
+    end
+    iterVec = [div*ones(1, numIters-1), addi];
     idxVec = [0 cumsum(iterVec)];
 
     % compute PSFs
@@ -54,17 +59,15 @@ function generatePSFe(gpudev, MPIparams, SPIOparams, angleVec, particleNo, div)
     tempDistribution = SPIOparams.SPIOdistribution(:,:,particleNo);
 
     % pad the distribution with 0s so it has same size with the PSFs
-    img_size = size(tempDistribution); psf_size = [zL, xL];
-    if img_size(1) < psf_size(1)
-       tempDistribution = padarray(tempDistribution,[floor((psf_size(1)-img_size(1))/2), 0],0,'both');
-       img_size = size(tempDistribution);
-       tempDistribution = padarray(tempDistribution,[psf_size(1)-img_size(1), 0],0,'post');
-    end
-    if img_size(2) < psf_size(2)
-       tempDistribution = padarray(tempDistribution,[0, floor((psf_size(2)-img_size(2))/2)],0,'both');
-       img_size = size(tempDistribution);
-       tempDistribution = padarray(tempDistribution,[0, psf_size(2)-img_size(2)],0,'post');
-    end
+    z_mpi = -MPIparams.FOV_z/2:dz:MPIparams.FOV_z/2;
+    x_mpi = -MPIparams.FOV_x/2:dx:MPIparams.FOV_x/2;
+    [xL_mpi, zL_mpi] = meshgrid(x_mpi, z_mpi);
+    z_spio = -SPIOparams.image_FOV_z/2:dz:SPIOparams.image_FOV_z/2-dz;
+    x_spio = -SPIOparams.image_FOV_x/2:dx:SPIOparams.image_FOV_x/2-dx;
+    [xL_spio, zL_spio] = meshgrid(x_spio, z_spio);
+    
+    tempDistribution = interp2(xL_spio, zL_spio, tempDistribution,  xL_mpi, zL_mpi,'linear', 0);
+
     % multiplication in frequency domain is faster than convolution in
     % time domain
     imgF = gpuArray(fft2(tempDistribution, zL, xL));
@@ -108,7 +111,6 @@ function generatePSFe(gpudev, MPIparams, SPIOparams, angleVec, particleNo, div)
         colIMG = real(ifft2(imgF.*colinearPSF_f)); wait(gpudev); clear colinearPSF_f;
         colIMG_s = fftshift(fftshift(colIMG, 1), 2); wait(gpudev); clear colIMG;
         h5write('./temp/PSF.h5', '/colinearIMG', gather(colIMG_s), [1 1 idxVec(l)+1], [zL xL iterVec(l)]); wait(gpudev); clear colIMG_s;
-
         
         tranIMG = real(ifft2(imgF.*transversePSF_f)); wait(gpudev); clear transversePSF_f;
         tranIMG_s = fftshift(fftshift(tranIMG, 1), 2); wait(gpudev); clear tranIMG;

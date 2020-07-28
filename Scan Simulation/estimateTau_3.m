@@ -9,7 +9,7 @@ gpudev = gpuDevice(1); % get the GPU device
 
 % parameters
 Physicsparams = setPhysicsParams(); % physics parameters
-MPIparams = setMPIParams(Physicsparams, [0.5, 0, 0.1]); % MPI machine parameters
+MPIparams = setMPIParams(Physicsparams, [20, 0, 2.5]); % MPI machine parameters
 SPIOparams = setSPIOParams(Physicsparams, 512, 2e-6); % SPIO parameters
 [Simparams, MPIparams] = setSimulationParams(MPIparams, Physicsparams); % Simulation parameters
 
@@ -163,8 +163,14 @@ for k=1:length(SPIOparams.diameter)
     RMSE = sqrt(sum((Vq(SPIOparams.SPIOdistribution(:,:,k)~=0)-meanTau(k)).^2)/numel(find(SPIOparams.SPIOdistribution(:,:,k)~=0)));
 end
 MPIparams.Rs(1)
+MPIparams.Rs(3)
 round(meanTau, 3)
 round(stdTau, 3)
 nRMSE = round(RMSE/meanTau, 3)
 nRMSE = round(RMSE/(max(Vq(SPIOparams.SPIOdistribution(:,:,k)~=0))-min(Vq(SPIOparams.SPIOdistribution(:,:,k)~=0))), 3)
+
+fprintf('%1.2f %12.2f %12.3f %12.3f %12.3f\n', MPIparams.Rs(1), MPIparams.Rs(3), ...
+    round(meanTau, 3), round(stdTau, 3), round(RMSE/meanTau, 3))
+
+
 

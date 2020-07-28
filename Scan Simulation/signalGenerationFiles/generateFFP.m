@@ -1,4 +1,4 @@
-function [FFPparams] = generateFFP(gpudev, t, MPIparams)
+function [FFPparams] = generateFFP(gpudev, t, MPIparams, type)
 
     FOV_z = MPIparams.FOV_z;
     FOV_x = MPIparams.FOV_x;
@@ -7,11 +7,19 @@ function [FFPparams] = generateFFP(gpudev, t, MPIparams)
     driveMag = MPIparams.driveMag;
     f_drive = MPIparams.f_drive;
     
-    if ((MPIparams.Rs(3) ~= 0) && (MPIparams.Rs(1) == 0))
-    elseif ((MPIparams.Rs(3) ~= 0) && (MPIparams.Rs(1) ~= 0))
-        z = FOV_z/time*t - FOV_z/2; % robot arm movement in z direction w.r.t. time
-        p = 1/(MPIparams.numTrianglePeriods/time);
-        x = FOV_x*(2*abs(2*(t/p - floor(t/p + 0.5)))-1)/2; % robot arm movement in x direction w.r.t. time
+    switch type
+        case 'normal'
+            if ((MPIparams.Rs(3) ~= 0) && (MPIparams.Rs(1) == 0))
+            elseif ((MPIparams.Rs(3) ~= 0) && (MPIparams.Rs(1) ~= 0))
+                z = FOV_z/time*t - FOV_z/2; % robot arm movement in z direction w.r.t. time
+                p = 1/(MPIparams.numTrianglePeriods/time);
+                x = FOV_x*(2*abs(2*(t/p - floor(t/p + 0.5)))-1)/2; % robot arm movement in x direction w.r.t. time
+            end
+        case 'test'
+            zSpeed = MPIparams.Rs(3)/MPIparams.Gzz;
+            xSpeed = MPIparams.Rs(1)/MPIparams.Gxx;
+            z = zSpeed*t - zSpeed*t(end)/2; % robot arm movement in z direction w.r.t. time
+            x = xSpeed*t - xSpeed*t(end)/2; % robot arm movement in x direction w.r.t. time
     end
     
     

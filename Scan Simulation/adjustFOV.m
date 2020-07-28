@@ -10,6 +10,6 @@ function MPIparams = adjustFOV(MPIparams)
     tf = FOV_z_a/zSpeed; % adjusting z-FOV adjusts time as well
     MPIparams.time = tf;
 
-    MPIparams.FOV_x = MPIparams.Rs(1)*tf/(2*MPIparams.numTrianglePeriods*MPIparams.Gxx); % adjust x-FOV so that Rsx is satisfied
+%     MPIparams.FOV_x = MPIparams.Rs(1)*tf/(2*MPIparams.numTrianglePeriods*MPIparams.Gxx); % adjust x-FOV so that Rsx is satisfied
 
 end

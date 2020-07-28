@@ -1,33 +1,36 @@
 function [tau_est_frequency, tau_est_linear, tau_lin_weighted] = estimateTau_func(MPIparams, estimationParams, signal, freqContribution)
 
+%     signal = [signal(1:end-2) signal(1:end-2) signal(1:end-2) signal];
 
     idx = 1:estimationParams.numSamplesPerIter;
     t_sig = idx/MPIparams.fs;
 
-    idx_interp = (1:estimationParams.numSampleInterpolated);
+    idx_interp = (1:length(idx)*estimationParams.interp_coeff);
     t_interp = idx_interp/MPIparams.fs/estimationParams.interp_coeff;
 
     sig = interp1(t_sig, signal,t_interp, 'linear', 'extrap');
     
-    pos = sig((1:end-MPIparams.fs/MPIparams.f_drive/2*estimationParams.interp_coeff-2*estimationParams.interp_coeff)+400); 
-    neg = sig(MPIparams.fs/MPIparams.f_drive/2*estimationParams.interp_coeff+(2*estimationParams.interp_coeff+1):end); 
+%     for k=0:5:100
+        pos = sig((1:end-MPIparams.fs/MPIparams.f_drive/2*estimationParams.interp_coeff-2*estimationParams.interp_coeff)); 
+        neg = sig(MPIparams.fs/MPIparams.f_drive/2*estimationParams.interp_coeff+(2*estimationParams.interp_coeff+1):end); 
 
-    L = length(neg);
-    f = (0:L-1)*(MPIparams.fs*estimationParams.interp_coeff)/L-(MPIparams.fs*estimationParams.interp_coeff)/2;
-    f = fftshift(f);
+        L = length(neg);
+        f = (0:L-1)*(MPIparams.fs*estimationParams.interp_coeff)/L-(MPIparams.fs*estimationParams.interp_coeff)/2;
+        f = fftshift(f);
 
-    S1 = fft(pos);
-    S2 = fft(neg).*exp(1i*2*pi*estimationParams.del_t.*f)*estimationParams.amp_t;
+        S1 = fft(pos);
+        S2 = fft(neg).*exp(1i*2*pi*estimationParams.del_t.*f);
 
-    sum_val = (S1+conj(S2));
-    sub_val = (conj(S2)-S1);
-    
-    
+        sum_val = (S1+conj(S2));
+        sub_val = (conj(S2)-S1);
 
-    a = 1i*2*pi*f.*sub_val;
-    b = sum_val;
-    
 
+
+        a = 1i*2*pi*f.*sub_val;
+        b = sum_val;
+
+%         figure; plot(real(b./a)); xlim([1 1200]); title(num2str(k))
+%     end
 
     f_axis = (0:L-1)*(MPIparams.fs*estimationParams.interp_coeff)/L;
 
@@ -39,13 +42,13 @@ function [tau_est_frequency, tau_est_linear, tau_lin_weighted] = estimateTau_fun
     end
 
 
-    a = transpose(real(a(sig_contribution)));
-    b = transpose(real(b(sig_contribution)));
+    a = transpose(a(sig_contribution));
+    b = transpose(b(sig_contribution));
 
     tau_est_frequency = mean(real(b./a));
-    tau_est_linear = (a'*a)^-1*a'*b; 
+    tau_est_linear = real((a'*a)^-1*a'*b); 
 
     W = diag(abs(S1(sig_contribution)).^2);
-    tau_lin_weighted = (a'*W*a)^-1*(a'*W)*b;
+    tau_lin_weighted = real((a'*W*a)^-1*(a'*W)*b);
 
 end

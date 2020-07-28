@@ -16,7 +16,7 @@ function MPIparams = setMPIParams(Physicsparams, rs)
     MPIparams.driveMag=Hp/G; % extent of the drive field
 
     MPIparams.fs = 2e6; % sample frequency of the MPI system (Hz)
-    MPIparams.FOV_z = 0.06; % FOV in z-axis (meters) (bore axis)
+    MPIparams.FOV_z = 0.05; % FOV in z-axis (meters) (bore axis)
     MPIparams.FOV_x = 0.05; % FOV in x-axis (meters)
    
     MPIparams.time = MPIparams.FOV_z*MPIparams.Gzz*(1/MPIparams.Rs(3)); % time (seconds)

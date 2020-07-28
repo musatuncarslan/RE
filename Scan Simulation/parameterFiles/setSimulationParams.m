@@ -10,7 +10,7 @@ function [Simparams, MPIparams] = setSimulationParams(MPIparams, Physicsparams)
         MPIparams = adjustFOV(MPIparams); % adjust z-FOV if necessary
         
         MPIparams.traversedFOVz = [0.00 MPIparams.FOV_z/(MPIparams.numTrianglePeriods*2)];
-        MPIparams.traversedFOVx = [-0.01 0.01];
+        MPIparams.traversedFOVx = [-0.035 0.035+0.0001];
         
         zPeriodsSim = simZperiods(MPIparams);
         xPeriodsSim = simXperiods(MPIparams);
