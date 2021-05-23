@@ -102,10 +102,12 @@ function generatePSFe(gpudev, MPIparams, SPIOparams, angleVec, particleNo, div)
         Lx_der = 1./Hxyzk.^2 - 1./sinh(Hxyzk).^2;
         Lx_der(idx) = 1/3; % Lx_der = Tenv, tangential from now on
         wait(gpudev); clear Hxyzk;
+        colinear_mat = Lx_der.*arg_colli + Lx.*(1-arg_colli);
+        transverse_mat = (Lx_der - Lx).*arg_trans;
+        wait(gpudev); clear Lx_der arg_colli Lx_der Lx arg_trans;
         
-        
-        colinearPSF_f = fft2(Lx_der.*arg_colli + Lx.*(1-arg_colli)); wait(gpudev); 
-        transversePSF_f = fft2((Lx_der - Lx).*arg_trans);
+        colinearPSF_f = fft2(colinear_mat);
+        transversePSF_f = fft2(transverse_mat);
         wait(gpudev); clear Lx Lx_der arg_colli arg_trans;
         
         colIMG = real(ifft2(imgF.*colinearPSF_f)); wait(gpudev); clear colinearPSF_f;

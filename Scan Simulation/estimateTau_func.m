@@ -1,8 +1,8 @@
 function [tau_est_frequency, tau_est_linear, tau_lin_weighted] = estimateTau_func(MPIparams, estimationParams, signal, freqContribution)
 
-%     signal = [signal(1:end-2) signal(1:end-2) signal(1:end-2) signal];
+    signal = [signal]; % signal(1:end-2) signal(1:end-2) signal(1:end-2) 
 
-    idx = 1:estimationParams.numSamplesPerIter;
+    idx = 1:length(signal);
     t_sig = idx/MPIparams.fs;
 
     idx_interp = (1:length(idx)*estimationParams.interp_coeff);
@@ -10,27 +10,22 @@ function [tau_est_frequency, tau_est_linear, tau_lin_weighted] = estimateTau_fun
 
     sig = interp1(t_sig, signal,t_interp, 'linear', 'extrap');
     
-%     for k=0:5:100
-        pos = sig((1:end-MPIparams.fs/MPIparams.f_drive/2*estimationParams.interp_coeff-2*estimationParams.interp_coeff)); 
-        neg = sig(MPIparams.fs/MPIparams.f_drive/2*estimationParams.interp_coeff+(2*estimationParams.interp_coeff+1):end); 
+    pos = sig((1:end-MPIparams.fs/MPIparams.f_drive/2*estimationParams.interp_coeff-2*estimationParams.interp_coeff)); 
+    neg = sig(MPIparams.fs/MPIparams.f_drive/2*estimationParams.interp_coeff+(2*estimationParams.interp_coeff+1):end); 
 
-        L = length(neg);
-        f = (0:L-1)*(MPIparams.fs*estimationParams.interp_coeff)/L-(MPIparams.fs*estimationParams.interp_coeff)/2;
-        f = fftshift(f);
+    L = length(neg);
+    f = (0:L-1)*(MPIparams.fs*estimationParams.interp_coeff)/L-(MPIparams.fs*estimationParams.interp_coeff)/2;
+    f = fftshift(f);
 
-        S1 = fft(pos);
-        S2 = fft(neg).*exp(1i*2*pi*estimationParams.del_t.*f);
+    S1 = fft(pos);
+    S2 = fft(neg).*exp(1i*2*pi*estimationParams.del_t.*f).*estimationParams.amp_t;
 
-        sum_val = (S1+conj(S2));
-        sub_val = (conj(S2)-S1);
+    sum_val = (S1+conj(S2));
+    sub_val = (conj(S2)-S1);
 
+    a = 1i*2*pi*f.*sub_val;
+    b = sum_val;
 
-
-        a = 1i*2*pi*f.*sub_val;
-        b = sum_val;
-
-%         figure; plot(real(b./a)); xlim([1 1200]); title(num2str(k))
-%     end
 
     f_axis = (0:L-1)*(MPIparams.fs*estimationParams.interp_coeff)/L;
 

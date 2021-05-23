@@ -44,11 +44,11 @@ pfov = (length(filteredSignal)-2)/(Simparams.samplePerPeriod/Simparams.downsampl
 data_idx = 1:pfov*MPIparams.fs/MPIparams.f_drive+2;
 partial_signal_interp = signal(data_idx);
 
-numPeriodsPerIter = 1;
+numPeriodsPerIter = 4;
 numIters = pfov/numPeriodsPerIter; 
 numPeriod = pfov; % (length(partial_signal_interp)-2)/(MPIparams.fs/MPIparams.f_drive); % number of periods on a single line
 
-estimationParams.interp_coeff = 100;
+estimationParams.interp_coeff = 1;
 estimationParams.numSamplesPerIter = numPeriodsPerIter*(Simparams.fs_mpi/MPIparams.f_drive)+2;
 estimationParams.numSample = (MPIparams.fs/MPIparams.f_drive)+2; % + 2 is for interpolation reasons
 estimationParams.numSampleInterpolated = estimationParams.numSamplesPerIter*estimationParams.interp_coeff;
@@ -57,60 +57,63 @@ tau_est_linear = zeros(1, numIters);
 tau_est_frequency = zeros(1, numIters);
 tau_lin_weighted = zeros(1, numIters);
 count = 1;
-for pfovIdx=1:numIters
+for pfovIdx=round(numIters/2)
     % sliding window
 %     sig_idx = (1:(estimationParams.numSamplesPerIter-2)+2)+(estimationParams.numSample-2)*(pfovIdx-1); 
     % non-sliding window    
-    sig_idx = ((1:(estimationParams.numSamplesPerIter-2)+2)+(estimationParams.numSamplesPerIter-2)*(pfovIdx-1));
+    sig_idx = ((1:(estimationParams.numSamplesPerIter-2))+(estimationParams.numSamplesPerIter-2)*(pfovIdx-1));
     
-    [tau_est_frequency(count), tau_est_linear(sig_idx), tau_lin_weighted(sig_idx)] = estimateTau_func(MPIparams, estimationParams, horizontalSignal(sig_idx), 5);
+    [tau_est_frequency(count), tau_est_linear(pfovIdx), tau_lin_weighted(sig_idx)] = estimateTau_func_new(MPIparams, estimationParams, filteredSignal(sig_idx), 5);
     count = count + 1;
 end
 
-figure; scatter3(FFP_x_fixed, FFP_z_fixed, tau_est_linear*10^6,  3, tau_est_linear*10^6)
-xlabel('x-axis'); ylabel('z-axis'); zlabel('\tau (us)')
 
 
-
-figure;
-x_axis = (-SPIOparams.image_FOV_x/2:SPIOparams.dx:SPIOparams.image_FOV_x/2-SPIOparams.dx);
-z_axis = (-SPIOparams.image_FOV_z/2:SPIOparams.dz:SPIOparams.image_FOV_z/2-SPIOparams.dz);
-distribution = zeros(size(SPIOparams.SPIOdistribution(:,:,1)));
-for k=1:length(SPIOparams.diameter)
-    distribution = distribution + SPIOparams.SPIOdistribution(:,:,k);
-end
-surf(x_axis*100, z_axis*100, distribution); shading interp
-title('Distribution')
-hold on;
-
-F = scatteredInterpolant(FFP_x_fixed', FFP_z_fixed', tau_est_linear'*10^6);
-F.Method = 'natural';
-[xq, zq] = meshgrid(x_axis, z_axis);
-Vq = F(xq, zq);
-
-figure; surf(x_axis*100, z_axis*100, Vq.*distribution)
-shading interp
-xlabel('x-axis (cm)'); ylabel('z-axis (cm)'); zlabel('\tau (\mu s)')
-axis tight; title(['Estimation Surface, f_d = ' num2str(MPIparams.f_drive*1e-3) ' kHz']); 
-colorbar; 
-view(2);
-
-meanTau = [];
-stdTau = [];
-for k=1:length(SPIOparams.diameter)
-    meanTau = [meanTau mean(Vq(SPIOparams.SPIOdistribution(:,:,k)~=0))];
-    stdTau = [stdTau std(Vq(SPIOparams.SPIOdistribution(:,:,k)~=0))];
-    RMSE = sqrt(sum((Vq(SPIOparams.SPIOdistribution(:,:,k)~=0)-meanTau(k)).^2)/numel(find(SPIOparams.SPIOdistribution(:,:,k)~=0)));
-end
+% figure; scatter3(FFP_x_fixed, FFP_z_fixed, tau_est_linear*10^6,  3, tau_est_linear*10^6)
+% xlabel('x-axis'); ylabel('z-axis'); zlabel('\tau (us)')
+% 
+% figure;
+% x_axis = (-SPIOparams.image_FOV_x/2:SPIOparams.dx:SPIOparams.image_FOV_x/2-SPIOparams.dx);
+% z_axis = (-SPIOparams.image_FOV_z/2:SPIOparams.dz:SPIOparams.image_FOV_z/2-SPIOparams.dz);
+% distribution = zeros(size(SPIOparams.SPIOdistribution(:,:,1)));
+% for k=1:length(SPIOparams.diameter)
+%     distribution = distribution + SPIOparams.SPIOdistribution(:,:,k);
+% end
+% surf(x_axis*100, z_axis*100, distribution); shading interp
+% title('Distribution')
+% hold on;
+% 
+% F = scatteredInterpolant(FFP_x_fixed', FFP_z_fixed', tau_est_linear'*10^6);
+% F.Method = 'natural';
+% [xq, zq] = meshgrid(x_axis, z_axis);
+% Vq = F(xq, zq);
+% 
+% figure; surf(x_axis*100, z_axis*100, Vq.*distribution)
+% shading interp
+% xlabel('x-axis (cm)'); ylabel('z-axis (cm)'); zlabel('\tau (\mu s)')
+% axis tight; title(['Estimation Surface, f_d = ' num2str(MPIparams.f_drive*1e-3) ' kHz']); 
+% colorbar; 
+% view(2);
+% 
+% meanTau = [];
+% stdTau = [];
+% for k=1:length(SPIOparams.diameter)
+%     meanTau = [meanTau mean(Vq(SPIOparams.SPIOdistribution(:,:,k)~=0))];
+%     stdTau = [stdTau std(Vq(SPIOparams.SPIOdistribution(:,:,k)~=0))];
+%     RMSE = sqrt(sum((Vq(SPIOparams.SPIOdistribution(:,:,k)~=0)-meanTau(k)).^2)/numel(find(SPIOparams.SPIOdistribution(:,:,k)~=0)));
+% end
 MPIparams.Rs(1);
 MPIparams.Rs(3);
+meanTau = tau_est_linear(2)*10^6;
 round(meanTau, 3);
+stdTau = 0;
 round(stdTau, 3);
+RMSE = 0;
 nRMSE = round(RMSE/meanTau, 3);
-nRMSE = round(RMSE/(max(Vq(SPIOparams.SPIOdistribution(:,:,k)~=0))-min(Vq(SPIOparams.SPIOdistribution(:,:,k)~=0))), 3);
+% nRMSE = round(RMSE/(max(Vq(SPIOparams.SPIOdistribution(:,:,k)~=0))-min(Vq(SPIOparams.SPIOdistribution(:,:,k)~=0))), 3);
 
 fprintf('%1.2f %12.2f %12.3f %12.3f %12.3f\n', MPIparams.Rs(1), MPIparams.Rs(3), ...
-    round(meanTau, 3), round(stdTau, 3), round(RMSE/meanTau, 3))
+    round(meanTau, 5), round(stdTau, 5), round(RMSE/meanTau, 5))
 
-
-
+% 
+% 

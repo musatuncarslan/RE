@@ -3,9 +3,13 @@ function [Simparams, MPIparams] = setSimulationParams(MPIparams, Physicsparams)
     
     
     if ((MPIparams.Rs(3) ~= 0) && (MPIparams.Rs(1) == 0))
-        MPIparams = adjustFOVz(MPIparams); % adjust z-FOV if necessary
+        MPIparams = adjustFOV(MPIparams); % adjust z-FOV if necessary
+        
+        MPIparams.traversedFOVz = [0.00 MPIparams.FOV_z/(MPIparams.numTrianglePeriods*2)];
+        
         zPeriodsSim = simZperiods(MPIparams);
-        Simparams.simPeriods = zPeriodsSim; % periods to simulate
+        xPeriodsSim = zPeriodsSim;
+        Simparams.simPeriods = intersect(xPeriodsSim,zPeriodsSim,'stable'); % periods to simulate
     elseif ((MPIparams.Rs(3) ~= 0) && (MPIparams.Rs(1) ~= 0))
         MPIparams = adjustFOV(MPIparams); % adjust z-FOV if necessary
         

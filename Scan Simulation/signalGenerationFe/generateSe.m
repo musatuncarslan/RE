@@ -63,13 +63,11 @@ function [signal, SPIOparams] = generateSe(gpudev, FFPparams, MPIparams, SPIOpar
     transverseIMG = gpuArray.zeros(zL, xL, div);
     for j=1:length(numIters)       
         for l=1:numIters{j}
-            try
-                colinearIMG(:,:,1:iterVec{j}(l)) = (h5read('./temp/PSF.h5','/colinearIMG', [1 1 idxVec{j}(l)+1], [zL xL iterVec{j}(l)]));
-                transverseIMG(:,:,1:iterVec{j}(l)) = (h5read('./temp/PSF.h5','/transverseIMG', [1 1 idxVec{j}(l)+1], [zL xL iterVec{j}(l)]));
-                partialAngle = angleVec(idxVec{j}(l)+1:idxVec{j}(l+1));
-            catch ME
-                aa = 5;
-            end
+
+            colinearIMG(:,:,1:iterVec{j}(l)) = (h5read('./temp/PSF.h5','/colinearIMG', [1 1 idxVec{j}(l)+1], [zL xL iterVec{j}(l)]));
+            transverseIMG(:,:,1:iterVec{j}(l)) = (h5read('./temp/PSF.h5','/transverseIMG', [1 1 idxVec{j}(l)+1], [zL xL iterVec{j}(l)]));
+            partialAngle = angleVec(idxVec{j}(l)+1:idxVec{j}(l+1));
+
             for k=1:length(partialAngle)
                 angleIdx = (FFP_angle == partialAngle(k));
 
