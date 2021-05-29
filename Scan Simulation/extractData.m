@@ -1,6 +1,6 @@
 function [signal_filtered, MPIparams] = extractData(signal, MPIparams, interp_fs, Bw, numHarmonics)
     interp_coeff = interp_fs/MPIparams.fs;
-    t = (0:length(signal)-1)/MPIparams.fs; t_interp = linspace(t(1), t(end), length(t)*interp_coeff);
+    t = (0:length(signal)-1)/MPIparams.fs; t_interp = (0:(length(signal)-2)*interp_coeff+1)/interp_fs;
     signal = interp1(t, signal, t_interp, 'spline'); % interpolate the signal to an integer multiple of the drive frequency
      
     

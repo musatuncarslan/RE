@@ -7,8 +7,8 @@ format compact;
 
 gpudev = gpuDevice(1); % get the GPU device
 
-rs_z = [0.1];
-rs_x = [0.0001];
+rs_z = [1:20];
+rs_x = [1];
 
 for rs_z_idx = rs_z
    for rs_x_idx = rs_x
@@ -18,7 +18,7 @@ for rs_z_idx = rs_z
         SPIOparams = setSPIOParams(Physicsparams, 512, 2e-6); % SPIO parameters
         [Simparams, MPIparams] = setSimulationParams(MPIparams, Physicsparams); % Simulation parameters
 
-        numPeriods = 2; % seconds
+        numPeriods = 4; % seconds
 
         uniqueAngle_sim = [];
         t = gpuArray((1:Simparams.samplePerPeriod*numPeriods+2*Simparams.downsample+1)/Simparams.fs_phsy);
@@ -28,20 +28,20 @@ for rs_z_idx = rs_z
         FFP_z = gather(FFPparams.FFP_z(1:Simparams.downsample:end-1));
         angleVec = unique(uniqueAngle_sim);
 
-        figure; hold on;
-        out = psfe(gpudev, MPIparams, SPIOparams, 1);
-        x_axis = (-MPIparams.FOV_x/2:SPIOparams.dx:MPIparams.FOV_x/2-SPIOparams.dx);
-        z_axis = (-MPIparams.FOV_z/2:SPIOparams.dz:MPIparams.FOV_z/2-SPIOparams.dz);
-        for k=1:length(SPIOparams.diameter)
-            surf(x_axis*100, z_axis*100, out); shading interp
-            hold on;
-        end
-        
-        
-        scatter3(FFP_x*100, FFP_z*100, ones(1, length(FFP_x))*3, 'MarkerFaceColor',[0 .75 .75])
-        view(2)
-        xlabel('x-axis (cm)'); ylabel('z-axis (cm)')
-        xlim([-0.04 0.08]); ylim([-0.6 0.6])
+%         figure; hold on;
+%         out = psfe(gpudev, MPIparams, SPIOparams, 1);
+%         x_axis = (-MPIparams.FOV_x/2:SPIOparams.dx:MPIparams.FOV_x/2-SPIOparams.dx);
+%         z_axis = (-MPIparams.FOV_z/2:SPIOparams.dz:MPIparams.FOV_z/2-SPIOparams.dz);
+%         for k=1:length(SPIOparams.diameter)
+%             surf(x_axis*100, z_axis*100, out); shading interp
+%             hold on;
+%         end
+%         
+%         
+%         scatter3(FFP_x*100, FFP_z*100, ones(1, length(FFP_x))*3, 'MarkerFaceColor',[0 .75 .75])
+%         view(2)
+%         xlabel('x-axis (cm)'); ylabel('z-axis (cm)')
+%         xlim([-0.04 0.08]); ylim([-0.6 0.6])
 
         wait(gpudev); clear FFPparams uniqueAngle_sim t;
 
@@ -73,29 +73,29 @@ for rs_z_idx = rs_z
                     FFP_z(k, 1:length(signals_sep.horizontalSignal)) = gather(FFPparams.FFP_z(1:Simparams.downsample:end-1));
                     drive(k, 1:length(signals_sep.horizontalSignal)) = gather(FFPparams.drive(1:Simparams.downsample:end-1));
                 end
-                speed = gather(FFPparams.FFP_speed);
-                speed = speed(1:Simparams.downsample:end);
-                FFP_angle = gather(FFPparams.FFP_angle);
-                FFP_angle = FFP_angle(1:Simparams.downsample:end);
-                signal_filtered = transpose(signalFrequencySelection(transpose(signal), MPIparams.fs, MPIparams.f_drive, 10, 'linear', 5, 'Time'));
-                
+%                 speed = gather(FFPparams.FFP_speed);
+%                 speed = speed(1:Simparams.downsample:end);
+%                 FFP_angle = gather(FFPparams.FFP_angle);
+%                 FFP_angle = FFP_angle(1:Simparams.downsample:end);
+%                 signal_filtered = transpose(signalFrequencySelection(transpose(signal), MPIparams.fs, MPIparams.f_drive, 10, 'linear', 5, 'Time'));
+%                 
                 wait(gpudev); clear signals_sep FFPparams;
             end
         end
         
-        signal_filtered_copy = signal_filtered;
-        signal_copy = signal;
-        speed_copy = speed;
-        num_interpolated_samples_per_period = MPIparams.fs/MPIparams.f_drive;
-        zero_val = 5;
-        for i=1:floor(length(signal_filtered)/num_interpolated_samples_per_period)
-            idx_begin = num_interpolated_samples_per_period*(i-1)+1:num_interpolated_samples_per_period*(i-1)+zero_val; 
-            idx_end = num_interpolated_samples_per_period*i-zero_val+1:num_interpolated_samples_per_period*i;
-            idx_mid = [idx_end-num_interpolated_samples_per_period/2, idx_begin+num_interpolated_samples_per_period/2];
-            signal_filtered_copy([idx_begin, idx_mid, idx_end]) = nan;
-            signal_copy([idx_begin, idx_mid, idx_end]) = nan;
-            speed_copy([idx_begin, idx_mid, idx_end]) = nan;
-        end
+%         signal_filtered_copy = signal_filtered;
+%         signal_copy = signal;
+%         speed_copy = speed;
+%         num_interpolated_samples_per_period = MPIparams.fs/MPIparams.f_drive;
+%         zero_val = 5;
+%         for i=1:floor(length(signal_filtered)/num_interpolated_samples_per_period)
+%             idx_begin = num_interpolated_samples_per_period*(i-1)+1:num_interpolated_samples_per_period*(i-1)+zero_val; 
+%             idx_end = num_interpolated_samples_per_period*i-zero_val+1:num_interpolated_samples_per_period*i;
+%             idx_mid = [idx_end-num_interpolated_samples_per_period/2, idx_begin+num_interpolated_samples_per_period/2];
+%             signal_filtered_copy([idx_begin, idx_mid, idx_end]) = nan;
+%             signal_copy([idx_begin, idx_mid, idx_end]) = nan;
+%             speed_copy([idx_begin, idx_mid, idx_end]) = nan;
+%         end
         
         
 

@@ -2,7 +2,7 @@ function SPIOparams = setSPIOParams(Physicsparams, pos, tau_val)
     SPIOparams = struct;
     
     SPIOparams.diameter = [25]; % (nm)
-    SPIOparams.tau = [0, 0, 3e-6]; % (S)
+    SPIOparams.tau = [4e-6, 0, 3e-6]; % (S)
     
     thc = 0;
     hei = 0;
@@ -19,8 +19,8 @@ function SPIOparams = setSPIOParams(Physicsparams, pos, tau_val)
 %     SPIOparams.SPIOdistribution((251-20:251+20)+10, (301-20:301+20), 3) = 1;
 
     % extent of SPIO distribution 
-    SPIOparams.image_FOV_x = 0.25; % (m) 
-    SPIOparams.image_FOV_z = 0.25; % (m) 
+    SPIOparams.image_FOV_x = 0.05; % (m) 
+    SPIOparams.image_FOV_z = 0.05; % (m) 
     SPIOparams.dx = SPIOparams.image_FOV_x/size(SPIOparams.SPIOdistribution,1);  % distance between each pixel (m)
     SPIOparams.dz = SPIOparams.image_FOV_z/size(SPIOparams.SPIOdistribution,2);  
 

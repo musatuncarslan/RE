@@ -32,15 +32,15 @@ estimationParams = struct;
 
 % filter the 1st harmonic and extract odd harmonics upto 7th. also upsample
 % the data if necessary
-[filteredSignal, MPIparams] = extractData(horizontalSignal, MPIparams, MPIparams.fs, 1000, 11);
+interp_coeff = 1;
+[filteredSignal, MPIparams] = extractData(horizontalSignal, MPIparams, MPIparams.fs*interp_coeff, 1000, 11);
 
 snr = inf;
 [signal, ~] = awgnInterference(filteredSignal, MPIparams, snr, inf);
 
-
 % start processing
 start_idx = 1; % start_idx+val_idx-3; % corrected start idx "-2" is magical dont ask
-pfov = (length(filteredSignal)-2)/(Simparams.samplePerPeriod/Simparams.downsample); % length(Simparams.simPeriods); % total number of pfovs
+pfov = (length(filteredSignal)-2)/(Simparams.samplePerPeriod/Simparams.downsample*interp_coeff); % length(Simparams.simPeriods); % total number of pfovs
 data_idx = 1:pfov*MPIparams.fs/MPIparams.f_drive+2;
 partial_signal_interp = signal(data_idx);
 
@@ -49,7 +49,7 @@ numIters = pfov/numPeriodsPerIter;
 numPeriod = pfov; % (length(partial_signal_interp)-2)/(MPIparams.fs/MPIparams.f_drive); % number of periods on a single line
 
 estimationParams.interp_coeff = 1;
-estimationParams.numSamplesPerIter = numPeriodsPerIter*(Simparams.fs_mpi/MPIparams.f_drive)+2;
+estimationParams.numSamplesPerIter = numPeriodsPerIter*(Simparams.fs_mpi/MPIparams.f_drive)*interp_coeff+2;
 estimationParams.numSample = (MPIparams.fs/MPIparams.f_drive)+2; % + 2 is for interpolation reasons
 estimationParams.numSampleInterpolated = estimationParams.numSamplesPerIter*estimationParams.interp_coeff;
 
@@ -104,7 +104,7 @@ end
 % end
 MPIparams.Rs(1);
 MPIparams.Rs(3);
-meanTau = tau_est_linear(2)*10^6;
+meanTau = tau_est_linear*10^6;
 round(meanTau, 3);
 stdTau = 0;
 round(stdTau, 3);
